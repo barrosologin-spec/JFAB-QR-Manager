@@ -1,0 +1,23 @@
+{
+  "qrStorageV2": {
+    "Test": {
+      "2026-05-26": {
+        "CX1": {
+          "items": []
+        }
+      }
+    }
+  },
+  "qrStorageLastUpdated": 1779798276833,
+  "qrSyncSettings": {
+    "interval": 60,
+    "presets": [
+      1,
+      5,
+      15,
+      30,
+      60,
+      120
+    ]
+  }
+}

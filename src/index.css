@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+/* System-wide Dark Mode Styling Overrides */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #020617; /* slate-950 */
+  color: #f8fafc; /* slate-50 */
+}
+
+/* Modals, cards, panels, list boxes */
+.dark .bg-white {
+  background-color: #0f172a !important; /* slate-900 */
+  color: #f1f5f9;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50,
+.dark .bg-slate-50\/50,
+.dark .bg-gray-50\/50,
+.dark .bg-gray-50\/70,
+.dark .bg-slate-50\/70 {
+  background-color: #030712 !important; /* slate-950-ish */
+}
+
+.dark .text-slate-800,
+.dark .text-slate-900,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-slate-850,
+.dark h1, .dark h2, .dark h3, .dark h4 {
+  color: #f8fafc !important; /* slate-50 */
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-slate-400 {
+  color: #94a3b8 !important; /* slate-400 */
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-slate-100,
+.dark .border-slate-200 {
+  border-color: #1e293b !important; /* slate-800 */
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1e293b !important; /* slate-800 */
+  border-color: #334155 !important; /* slate-700 */
+  color: #f8fafc !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+  --tw-ring-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #1e293b !important; /* slate-800 */
+  color: #f8fafc !important;
+}
+
+/* Fix table headers, cells, and shadows */
+.dark th {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important; /* slate-300 */
+  border-color: #334155 !important;
+}
+
+.dark td {
+  border-color: #1e293b !important;
+}
+
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5) !important;
+}
+
+/* Support activePreset category items to have darker, readable contrasts in dark mode */
+.dark .bg-blue-50\/70 { background-color: rgba(37, 99, 235, 0.15) !important; color: #60a5fa !important; }
+.dark .bg-emerald-50\/70 { background-color: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; }
+.dark .bg-orange-50\/70 { background-color: rgba(234, 88, 12, 0.15) !important; color: #fb923c !important; }
+.dark .bg-purple-50\/70 { background-color: rgba(139, 92, 246, 0.15) !important; color: #c084fc !important; }
+.dark .bg-rose-50\/70 { background-color: rgba(244, 63, 94, 0.15) !important; color: #f43f5e !important; }
+.dark .bg-cyan-50\/70 { background-color: rgba(6, 182, 212, 0.15) !important; color: #22d3ee !important; }
+.dark .bg-amber-50\/70 { background-color: rgba(217, 119, 6, 0.15) !important; color: #fbbf24 !important; }
+.dark .bg-indigo-50\/70 { background-color: rgba(79, 70, 229, 0.15) !important; color: #818cf8 !important; }
+
+/* Text color contrast adjustments for active items */
+.dark .text-blue-750 { color: #60a5fa !important; }
+.dark .text-emerald-750 { color: #34d399 !important; }
+.dark .text-orange-750 { color: #fb923c !important; }
+.dark .text-purple-750 { color: #c084fc !important; }
+.dark .text-rose-750 { color: #f43f5e !important; }
+.dark .text-cyan-755 { color: #22d3ee !important; }
+.dark .text-amber-750 { color: #fbbf24 !important; }
+.dark .text-indigo-750 { color: #818cf8 !important; }
+
+/* Modal specific contrast improvements */
+.dark button.hover\:bg-gray-200:hover {
+  background-color: #334155 !important;
+}
