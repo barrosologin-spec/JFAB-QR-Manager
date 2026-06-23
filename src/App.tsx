@@ -1776,7 +1776,7 @@ export default function App() {
 
         <JfabFooter className="bg-white border-t border-gray-200 px-8 py-4 text-gray-500 text-xs font-semibold flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col md:flex-row md:items-center gap-2 text-center md:text-left">
-            <span>&copy; 2025 <b>José Felipe A. Barroso.</b> Todos os direitos reservados.</span>
+            <span>&copy; 2025/2026 <b>José Felipe A. Barroso.</b> Todos os direitos reservados.</span>
             <span className="hidden md:inline text-gray-300">|</span>
             <button 
               type="button" 
