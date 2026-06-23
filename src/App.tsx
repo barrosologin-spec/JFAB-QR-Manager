@@ -1541,49 +1541,7 @@ export default function App() {
           )}
         </div>
 
-        {/* User profile with logout option */}
-        <div className="p-4 border-t border-gray-150 dark:border-slate-805 shrink-0 bg-slate-50/50 dark:bg-slate-900/60 flex flex-col gap-2">
-          {!isSidebarCollapsed ? (
-            <div className="flex items-center justify-between gap-3 p-1">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center font-black text-sm text-blue-500 shrink-0">
-                  {currentUser && currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-slate-800 dark:text-slate-150 truncate leading-none mb-0.5" title={currentUser?.name}>
-                    {currentUser?.name}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-450 truncate" title={currentUser?.email}>
-                    {currentUser?.email?.split('@')[0]}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={logout}
-                title="Sair do Sistema"
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl text-red-500 hover:text-red-650 shrink-0 cursor-pointer transition active:scale-95"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <div 
-                title={`${currentUser?.name} (${currentUser?.email})`}
-                className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center font-black text-sm text-blue-500 cursor-help"
-              >
-                {currentUser && currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <button 
-                onClick={logout}
-                title="Sair do Sistema"
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl text-red-500 hover:text-red-650 cursor-pointer transition active:scale-95"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          )}
-        </div>
+        
       </JfabSidebar>
 
       <JfabMain className="flex-1 flex flex-col overflow-hidden">
@@ -1592,6 +1550,8 @@ export default function App() {
           onOpenSettings={handleOpenSettings}
           notificationCount={notifications.length}
           activePreset={activePreset}
+          currentUser={currentUser}
+          onLogout={logout}
         />
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
@@ -1776,7 +1736,7 @@ export default function App() {
 
         <JfabFooter className="bg-white border-t border-gray-200 px-8 py-4 text-gray-500 text-xs font-semibold flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col md:flex-row md:items-center gap-2 text-center md:text-left">
-            <span>&copy; 2025/2026 <b>José Felipe A. Barroso.</b> Todos os direitos reservados.</span>
+            <span>&copy; 2025 <b>José Felipe A. Barroso.</b> Todos os direitos reservados.</span>
             <span className="hidden md:inline text-gray-300">|</span>
             <button 
               type="button" 
@@ -2176,7 +2136,7 @@ export default function App() {
           {/* Sincronização Global */}
           <div className="space-y-6 pt-6 border-t border-slate-150">
             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Database size={14} className="text-blue-500" /> Sincronização Global (Firebase)
+              <Database size={14} className="text-blue-500" /> Sincronização com o Servidor
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">

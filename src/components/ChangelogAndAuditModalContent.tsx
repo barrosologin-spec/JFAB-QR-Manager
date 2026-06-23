@@ -35,8 +35,28 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v2.8.0',
+      version: 'v2.9.1',
       tag: 'Atual',
+      date: '23 de Junho, 2026',
+      title: 'Mecanismo de Estatística Dinâmica por Data',
+      highlights: [
+        'Adicionado indicador em tempo real de contagem de bips e duplicatas ao lado do rótulo "Data de Produção".',
+        'Exibição visual e elegante no formato "Total - Duplicados = Bipados Ativos" para controle imediato do rendimento operacional.',
+        'Sincronização reativa instantânea das estatísticas conforme novos lotes são integrados, consolidados, arquivados ou modificados.'
+      ]
+    },
+    {
+      version: 'v2.9.0',
+      date: '22 de Junho, 2026',
+      title: 'Sincronização Direta em Servidor & Header Simplificado',
+      highlights: [
+        'Descontinuação completa da camada local IndexedDB para operação direta, rápida e centralizada no banco de dados do servidor (storage.json).',
+        'Remoção do botão "Painel de Ajustes", substituindo-o por um painel sofisticado de identificação do operador ativo e controle rápido de Saída (Logout) integrado diretamente no cabeçalho superior.',
+        'Saneamento de logs e interface de usuário focada em consistência e usabilidade aprimorada.'
+      ]
+    },
+    {
+      version: 'v2.8.0',
       date: '22 de Junho, 2026',
       title: 'Sistema de Acesso Restrito & Criptografia MD5',
       highlights: [

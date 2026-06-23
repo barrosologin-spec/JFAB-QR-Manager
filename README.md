@@ -10,6 +10,7 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 
 ### 📋 Fluxo de Produção & Painéis Dinâmicos
 * **Painel de Produção Integrado:** Controle em tempo real do progresso operacional e distribuição de lotes com ordenação cronológica avançada.
+* **Estatísticas de Bipagem por Data:** Indicador automático em tempo real posicionado junto ao rótulo "Data de Produção" (no formato `Total - Duplicados = Bipados Ativos`), permitindo auditoria visual em tempo real no processo de triagem.
 * **Calendário Interativo:** Planejamento claro de coletas baseado em datas operacionais críticas.
 * **Busca Global e Duplicatas:** Rastreador inteligente de itens duplicados para mitigar inconsistências, aliado a um mecanismo de busca instantâneo capaz de varrer todo o inventário.
 

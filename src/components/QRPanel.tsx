@@ -80,6 +80,29 @@ export function QRPanel({
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [formattingMsg, setFormattingMsg] = useState('');
+
+  // Calculate live statistics for selected date under selected category
+  const dateStats = useMemo(() => {
+    let total = 0;
+    let dups = 0;
+    if (selectedCategory && selectedDate && storage[selectedCategory]?.[selectedDate]) {
+      const dateNode = storage[selectedCategory][selectedDate];
+      Object.entries(dateNode).forEach(([contName, data]) => {
+        if (contName.startsWith('_')) return;
+        if (data && Array.isArray(data.items)) {
+          data.items.forEach((item: QRItem) => {
+            if (!item.archived) {
+              total++;
+              if (item.duplicate) {
+                dups++;
+              }
+            }
+          });
+        }
+      });
+    }
+    return { total, dups, active: total - dups };
+  }, [storage, selectedCategory, selectedDate]);
   
   // Custom Paginated Data Table States
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -401,13 +424,7 @@ export function QRPanel({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-          <div className="text-right hidden sm:block">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Status do Firebase</p>
-            <p className="text-[11px] font-extrabold text-slate-700">Canal Realtime Estabelecido</p>
-          </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse border border-emerald-300 shadow-xs" title="Conectado ao Firebase"></div>
-        </div>
+
       </div>
 
       {/* Main Grid Layout: left side configs, right side scan & items list */}
@@ -472,7 +489,14 @@ export function QRPanel({
 
               {/* Date selection */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">Data de Produção</label>
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Data de Produção</label>
+                  {selectedCategory && selectedDate && (
+                    <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-lg border border-blue-100/60 dark:border-blue-900/40">
+                      {dateStats.total} - {dateStats.dups} {dateStats.dups === 1 ? 'duplicado' : 'duplicados'} = {dateStats.active} {dateStats.active === 1 ? 'Bipado' : 'Bipados'}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input 
                     type="date" 
