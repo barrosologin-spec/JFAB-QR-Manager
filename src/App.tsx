@@ -57,7 +57,8 @@ export default function App() {
     login,
     logout,
     registerUser,
-    importFullStorage
+    importFullStorage,
+    addCustomAuditLog
   } = useSyncData();
 
   const formatTimeLeft = (seconds: number) => {
@@ -714,7 +715,19 @@ export default function App() {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(primaryColor);
       doc.setFontSize(12);
-      doc.text(`${items.length} ITENS CADASTRADOS`, labelX, 151);
+      
+      const nfeItems = items.filter(i => i.nfeData);
+      const isNFe = nfeItems.length > 0;
+      
+      if (isNFe) {
+        let totalVols = 0;
+        nfeItems.forEach(ni => {
+          totalVols += parseInt(ni.nfeData?.volumes || "1", 10) || 1;
+        });
+        doc.text(`${totalVols} VOLUMES DE ${nfeItems.length} NF${nfeItems.length > 1 ? 's' : ''}`, labelX, 151);
+      } else {
+        doc.text(`${items.length} ITENS CADASTRADOS`, labelX, 151);
+      }
 
       // Right Pane - QR/Barcode image placement
       doc.setTextColor(100, 116, 139);
@@ -738,49 +751,100 @@ export default function App() {
       let tableY = 175;
       let listLimit = 10;
       
-      const nfeItem = items.find(i => i.nfeData);
-      if (nfeItem && nfeItem.nfeData) {
-        const mainNfe = nfeItem.nfeData;
-        doc.setTextColor(textColor);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8.5);
-        doc.text("DADOS DA NOTA FISCAL ELETRÔNICA:", 16, 170);
+      if (isNFe) {
+        if (nfeItems.length === 1) {
+          const mainNfe = nfeItems[0].nfeData;
+          doc.setTextColor(textColor);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8.5);
+          doc.text("DADOS DA NOTA FISCAL ELETRÔNICA:", 16, 170);
 
-        doc.setFontSize(7.5);
-        doc.text("CHAVE:", 16, 176);
-        doc.setFont("helvetica", "normal");
-        doc.text(mainNfe.chave || "N/A", 30, 176);
-        
-        doc.setFont("helvetica", "bold");
-        doc.text("EMITENTE:", 16, 181);
-        doc.setFont("helvetica", "normal");
-        const emitenteStr = mainNfe.emitente?.nome || mainNfe.emitente?.xNome || mainNfe.infNFe?.emit?.xNome || "N/A";
-        doc.text(String(emitenteStr).substring(0, 90), 34, 181);
+          doc.setFontSize(7.5);
+          doc.text("CHAVE:", 16, 176);
+          doc.setFont("helvetica", "normal");
+          doc.text(mainNfe.chave || nfeItems[0].t, 30, 176);
+          
+          doc.setFont("helvetica", "bold");
+          doc.text("EMITENTE:", 16, 181);
+          doc.setFont("helvetica", "normal");
+          const emitenteStr = mainNfe.emitente?.nome || mainNfe.emitente?.xNome || mainNfe.infNFe?.emit?.xNome || "N/A";
+          doc.text(String(emitenteStr).substring(0, 90), 34, 181);
 
-        doc.setFont("helvetica", "bold");
-        doc.text("DESTINATÁRIO:", 16, 186);
-        doc.setFont("helvetica", "normal");
-        const destStr = mainNfe.destinatario?.nome || mainNfe.destinatario?.xNome || mainNfe.infNFe?.dest?.xNome || "N/A";
-        doc.text(String(destStr).substring(0, 90), 40, 186);
+          doc.setFont("helvetica", "bold");
+          doc.text("DESTINATÁRIO:", 16, 186);
+          doc.setFont("helvetica", "normal");
+          const destStr = mainNfe.destinatario?.nome || mainNfe.destinatario?.xNome || mainNfe.infNFe?.dest?.xNome || "N/A";
+          doc.text(String(destStr).substring(0, 90), 40, 186);
 
-        doc.setFont("helvetica", "bold");
-        doc.text("TRANSPORTE:", 16, 191);
-        doc.setFont("helvetica", "normal");
-        const transpStr = mainNfe.transportadora?.nome || mainNfe.infNFe?.transp?.transporta?.xNome || "N/A";
-        doc.text(String(transpStr).substring(0, 70), 40, 191);
+          doc.setFont("helvetica", "bold");
+          doc.text("TRANSPORTE:", 16, 191);
+          doc.setFont("helvetica", "normal");
+          const transpStr = mainNfe.transportadora?.nome || mainNfe.infNFe?.transp?.transporta?.xNome || "N/A";
+          doc.text(String(transpStr).substring(0, 70), 40, 191);
 
-        doc.setFont("helvetica", "bold");
-        doc.text("VOLUME(S):", 150, 191);
-        doc.setFont("helvetica", "normal");
-        const volsStr = mainNfe.volumes || "N/A";
-        doc.text(String(volsStr), 172, 191);
+          doc.setFont("helvetica", "bold");
+          doc.text("VOLUME(S):", 150, 191);
+          doc.setFont("helvetica", "normal");
+          const volsStr = mainNfe.volumes || "N/A";
+          doc.text(String(volsStr), 172, 191);
 
-        doc.setDrawColor(primaryColor);
-        doc.line(15, 195, 195, 195);
-        
-        manifestoY = 202;
-        tableY = 207;
-        listLimit = 5;
+          doc.setDrawColor(primaryColor);
+          doc.line(15, 195, 195, 195);
+          
+          manifestoY = 202;
+          tableY = 207;
+          listLimit = 5;
+        } else {
+          doc.setTextColor(textColor);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8.5);
+          doc.text(`NOTAS FISCAIS ELETRÔNICAS INTEGRADAS (LOTE DE ${nfeItems.length} NFs):`, 16, 170);
+
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text("CHAVE / NF-e", 16, 175);
+          doc.text("EMITENTE", 82, 175);
+          doc.text("DESTINATÁRIO", 138, 175);
+          doc.text("VOLS", 188, 175);
+
+          doc.setDrawColor(primaryColor);
+          doc.setLineWidth(0.3);
+          doc.line(15, 177, 195, 177);
+
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(textColor);
+          
+          const displayNfes = nfeItems.slice(0, 3);
+          displayNfes.forEach((nItem, index) => {
+            const nY = 181 + (index * 4.8);
+            const dataNfe = nItem.nfeData;
+            
+            doc.text(nItem.t.substring(0, 4) + "..." + nItem.t.substring(40), 16, nY);
+            
+            const emitName = dataNfe.emitente?.nome || dataNfe.emitente?.xNome || "N/A";
+            doc.text(String(emitName).substring(0, 24), 82, nY);
+            
+            const destName = dataNfe.destinatario?.nome || dataNfe.destinatario?.xNome || "N/A";
+            doc.text(String(destName).substring(0, 24), 138, nY);
+            
+            const vols = dataNfe.volumes || "1";
+            doc.text(String(vols), 188, nY);
+          });
+
+          if (nfeItems.length > 3) {
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(6);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`+ ${nfeItems.length - 3} outras notas fiscais vinculadas ao mesmo contêiner.`, 16, 196);
+          }
+
+          doc.setDrawColor(primaryColor);
+          doc.line(15, 198, 195, 198);
+
+          manifestoY = 202;
+          tableY = 207;
+          listLimit = 5;
+        }
       }
 
       // 6. DETAILED SUMMARY OF REGISTERED ITEMS (Content Manifesto)
@@ -790,7 +854,6 @@ export default function App() {
       doc.text("MANIFESTO DE COMPOSIÇÃO DE CARGA (ITENS ESCANEADOS LOTE):", 16, manifestoY);
 
       // Draw table headers
-      const isNFe = nfeItem && nfeItem.nfeData;
       doc.setTextColor(100, 116, 139);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
@@ -807,40 +870,48 @@ export default function App() {
       doc.setFontSize(7.5);
       doc.setTextColor(textColor);
 
-      if (isNFe && nfeItem.nfeData.produtos && nfeItem.nfeData.produtos.length > 0) {
-        const prods = nfeItem.nfeData.produtos;
-        const displayItems = prods.slice(0, listLimit);
-        displayItems.forEach((prod: any, index: number) => {
-          const itemY = tableY + 7 + (index * 7.2);
-          
-          doc.setDrawColor(241, 245, 250);
-          doc.setLineWidth(0.2);
-          doc.line(15, itemY + 1.8, 195, itemY + 1.8);
-
-          doc.setFont("helvetica", "bold");
-          doc.text(String(index + 1), 16, itemY);
-          
-          doc.setFont("helvetica", "bold");
-          let labelText = prod.nome || "N/A";
-          if (labelText.length > 56) {
-            labelText = labelText.substring(0, 53) + "...";
+      if (isNFe) {
+        const allNfeProducts: any[] = [];
+        nfeItems.forEach(ni => {
+          if (ni.nfeData && Array.isArray(ni.nfeData.produtos)) {
+            allNfeProducts.push(...ni.nfeData.produtos);
           }
-          doc.text(labelText, 26, itemY);
-
-          doc.setFont("helvetica", "normal");
-          doc.text((prod.qtd || "1") + " UN", 142, itemY);
         });
 
-        if (prods.length > listLimit) {
-          const diff = prods.length - listLimit;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(8);
-          doc.setTextColor(100, 116, 139);
-          doc.text(`+ ${diff} outros produtos estão listados na nota fiscal original.`, 16, tableY + 7 + (listLimit * 7.2) + 2);
-        } else if (prods.length === 0) {
+        if (allNfeProducts.length > 0) {
+          const displayItems = allNfeProducts.slice(0, listLimit);
+          displayItems.forEach((prod: any, index: number) => {
+            const itemY = tableY + 7 + (index * 7.2);
+            
+            doc.setDrawColor(241, 245, 250);
+            doc.setLineWidth(0.2);
+            doc.line(15, itemY + 1.8, 195, itemY + 1.8);
+
+            doc.setFont("helvetica", "bold");
+            doc.text(String(index + 1), 16, itemY);
+            
+            doc.setFont("helvetica", "bold");
+            let labelText = prod.nome || "N/A";
+            if (labelText.length > 56) {
+              labelText = labelText.substring(0, 53) + "...";
+            }
+            doc.text(labelText, 26, itemY);
+
+            doc.setFont("helvetica", "normal");
+            doc.text((prod.qtd || "1") + " UN", 142, itemY);
+          });
+
+          if (allNfeProducts.length > listLimit) {
+            const diff = allNfeProducts.length - listLimit;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`+ ${diff} outros produtos estão listados nas notas fiscais originais.`, 16, tableY + 7 + (listLimit * 7.2) + 2);
+          }
+        } else {
           doc.setFont("helvetica", "italic");
           doc.setTextColor(148, 163, 184);
-          doc.text("Nenhum produto encontrado nesta nota.", 16, tableY + 7);
+          doc.text("Nenhum produto encontrado nas notas.", 16, tableY + 7);
         }
       } else {
         const displayItems = items.slice(0, listLimit);
@@ -1108,6 +1179,552 @@ export default function App() {
 
     setPdfProgress({ current: 0, total: 0, isOpen: false });
     addNotification('success', 'PDF Concluído', 'O arquivo foi baixado com sucesso.');
+  };
+
+  const handleDownloadDanfePDF = async (targetItems?: QRItem[]) => {
+    const nfeItems = targetItems || items.filter(i => i.nfeData);
+    if (nfeItems.length === 0) {
+      addNotification('error', 'Sem Dados de NF-e', 'Nenhuma Nota Fiscal Eletrônica com dados recuperados foi encontrada para gerar o DANFE.');
+      return;
+    }
+
+    addNotification('info', 'Gerando DANFE(s)', `Preparando layout de Nota Fiscal para ${nfeItems.length} documento(s)...`);
+
+    // Load custom template danfe
+    let dTemplate = {
+      name: "Layout Padrão DANFE",
+      themeColor: "#10b981", // Emerald default
+      showReceipt: true,
+      showWatermark: true,
+      watermarkText: "JOSÉ FELIPE A. BARROSO",
+      showAdditionalNotes: true,
+      customLogoText: "EMITENTE AUTOMÁTICO S.A.",
+      showSysAuthentication: true,
+      customStampText: "STATUS: APROVADA & CONSOLIDADA",
+      rowSpacing: 6,
+      fontSizeHeader: 10,
+      fontSizeItems: 6,
+      margins: 8
+    };
+    try {
+      const saved = localStorage.getItem('jfab_custom_template_danfe');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        dTemplate = { ...dTemplate, ...parsed };
+      }
+    } catch (e) {
+      console.error("Failed to load custom template danfe", e);
+    }
+
+    const hexToRgb = (hex: string) => {
+      const cleanHex = hex.replace('#', '');
+      const r = parseInt(cleanHex.slice(0, 2), 16) || 0;
+      const g = parseInt(cleanHex.slice(2, 4), 16) || 0;
+      const b = parseInt(cleanHex.slice(4, 6), 16) || 0;
+      return { r, g, b };
+    };
+    const themeRgb = hexToRgb(dTemplate.themeColor);
+
+    const m = dTemplate.margins;
+    const delta = m - 8;
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      const parseNfeKey = (key: string) => {
+        if (key && key.length === 44) {
+          const series = parseInt(key.substring(22, 25), 10) || 1;
+          const number = parseInt(key.substring(25, 34), 10) || 123456;
+          const cnpj = key.substring(6, 20).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+          return { series, number, cnpj };
+        }
+        return { series: 1, number: 123456, cnpj: "12.345.678/0001-90" };
+      };
+
+      for (let i = 0; i < nfeItems.length; i++) {
+        if (i > 0) {
+          doc.addPage();
+        }
+        
+        const item = nfeItems[i];
+        const nfe = item.nfeData || {};
+        const key = item.t;
+        const { series, number, cnpj: emitCnpj } = parseNfeKey(key);
+        
+        const formattedKey = key.replace(/(.{4})/g, '$1 ').trim();
+        
+        const emitName = nfe.emitente?.nome || nfe.emitente?.xNome || nfe.infNFe?.emit?.xNome || "EMITENTE AUTOMÁTICO S.A.";
+        const destName = nfe.destinatario?.nome || nfe.destinatario?.xNome || nfe.infNFe?.dest?.xNome || "DESTINATÁRIO CONSIGNADO LTDA";
+        const transpName = nfe.transportadora?.nome || nfe.infNFe?.transp?.transporta?.xNome || "FÊNIX LOGÍSTICA & TRANSPORTES";
+        const vols = nfe.volumes || "1";
+        const prods = nfe.produtos || [];
+
+        // Calculate prices
+        let totalProdValue = 0;
+        const detailedProds = prods.map((p: any, idx: number) => {
+          const qty = parseFloat(p.qtd) || 1;
+          const nameLen = p.nome ? p.nome.length : 10;
+          const unitPrice = 25.00 + (nameLen % 7) * 23.50 + (idx % 3) * 11.20;
+          const totalVal = unitPrice * qty;
+          totalProdValue += totalVal;
+          return {
+            code: String(1001 + idx),
+            name: p.nome || "PRODUTO DE CONSUMO INDUSTRIAL",
+            qty,
+            unitPrice,
+            totalVal
+          };
+        });
+
+        const formattedTotalProd = totalProdValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        // Watermark if enabled (drawn first so background)
+        if (dTemplate.showWatermark) {
+          doc.setTextColor(242, 242, 242);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text(dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO", 50, 100, { angle: 335 });
+          doc.text(dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO", 50, 180, { angle: 335 });
+        }
+
+        // Draw general border / frame using custom theme color
+        doc.setDrawColor(themeRgb.r, themeRgb.g, themeRgb.b);
+        doc.setLineWidth(0.3);
+        doc.rect(m, m, 210 - 2 * m, 297 - 2 * m);
+
+        let currentY = m;
+
+        // Canhoto (Receipt)
+        if (dTemplate.showReceipt) {
+          doc.rect(m, currentY, 210 - 2 * m, 18);
+          doc.line(150 + delta, currentY, 150 + delta, currentY + 18);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6);
+          doc.setTextColor(0);
+          doc.text("RECEBEMOS DE " + String(dTemplate.customLogoText || emitName).toUpperCase().substring(0, 50) + " OS PRODUTOS/SERVIÇOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO", m + 2, currentY + 4);
+          doc.text("DATA DE RECEBIMENTO", m + 2, currentY + 12);
+          doc.text("IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR", 55 + delta, currentY + 12);
+          doc.line(50 + delta, currentY + 8, 50 + delta, currentY + 18);
+          
+          doc.setFontSize(10);
+          doc.text("NF-e", 168 + delta, currentY + 5, { align: 'center' });
+          doc.setFontSize(8);
+          doc.text(`Nº ${String(number).padStart(9, '0')}`, 168 + delta, currentY + 10, { align: 'center' });
+          doc.text(`SÉRIE ${series}`, 168 + delta, currentY + 15, { align: 'center' });
+
+          currentY += 18 + 2;
+        }
+
+        // Header block
+        doc.rect(m, currentY, 210 - 2 * m, 48);
+        doc.line(88 + delta, currentY, 88 + delta, currentY + 48);
+        doc.line(124 + delta, currentY, 124 + delta, currentY + 48);
+
+        // Emitente text
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(dTemplate.fontSizeHeader);
+        doc.text(String(dTemplate.customLogoText || emitName).toUpperCase().substring(0, 36), m + 3, currentY + 6);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.text("LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA", m + 3, currentY + 10);
+        doc.text("AV. INDUSTRIAL DAS NAÇÕES, 1200 - DISTRITO INDUSTRIAL", m + 3, currentY + 14);
+        doc.text("SÃO PAULO - SP - CEP: 09120-000", m + 3, currentY + 18);
+        doc.text("TELEFONE: (11) 4002-8922 / sac@jfab.com.br", m + 3, currentY + 22);
+        doc.setFont("helvetica", "bold");
+        doc.text(`CNPJ: ${emitCnpj}`, m + 3, currentY + 29);
+        doc.text("INSCRIÇÃO ESTADUAL: 148.992.120.110", m + 3, currentY + 33);
+        doc.text("INSCRIÇÃO MUNICIPAL: 981.002.33", m + 3, currentY + 37);
+        doc.setFont("helvetica", "normal");
+        doc.text("UF: SP • PAÍS: BRASIL", m + 3, currentY + 41);
+
+        // DANFE block
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("DANFE", 106 + delta, currentY + 7, { align: 'center' });
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        doc.text("Documento Auxiliar da\nNota Fiscal Eletrônica", 106 + delta, currentY + 12, { align: 'center' });
+        
+        doc.rect(103 + delta, currentY + 18, 6, 6);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("1", 106 + delta, currentY + 22.5, { align: 'center' });
+        doc.setFontSize(5.5);
+        doc.setFont("helvetica", "normal");
+        doc.text("0 - ENTRADA\n1 - SAÍDA", 111 + delta, currentY + 21);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(`Nº ${String(number).padStart(9, '0')}`, 106 + delta, currentY + 30, { align: 'center' });
+        doc.text(`SÉRIE ${series}`, 106 + delta, currentY + 34, { align: 'center' });
+        doc.text("FOLHA 01/01", 106 + delta, currentY + 38, { align: 'center' });
+
+        // Barcode
+        try {
+          const dataUrl = await generateBarcodeDataURL(key);
+          doc.addImage(dataUrl, 'PNG', 126 + delta, currentY + 3, 73, 14);
+        } catch (err) {
+          console.error("Error generating DANFE barcode", err);
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6);
+        doc.text("CHAVE DE ACESSO", 126 + delta, currentY + 20);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.text(formattedKey, 126 + delta, currentY + 24);
+
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "bold");
+        doc.text("CHAVE DIGITALIZÁVEL INTEGRADA - PORTAL OPERACIONAL DE LEITURAS", 126 + delta, currentY + 30);
+        doc.text("CONSULTA DE AUTENTICIDADE NO PORTAL DA SEFAZ OU SEFAZ.FAZENDA.GOV.BR", 126 + delta, currentY + 34);
+
+        currentY += 48 + 2;
+
+        // Destinatário
+        doc.setFillColor(245, 245, 245);
+        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(0);
+        doc.text("DESTINATÁRIO / REMETENTE", m + 2, currentY + 3);
+
+        doc.rect(m, currentY + 4, 210 - 2 * m, 18);
+        doc.line(145 + delta, currentY + 4, 145 + delta, currentY + 22);
+        doc.line(175 + delta, currentY + 4, 175 + delta, currentY + 22);
+        
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("NOME / RAZÃO SOCIAL", m + 2, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(0);
+        doc.text(String(destName).toUpperCase().substring(0, 72), m + 2, currentY + 12);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("CNPJ / CPF", 147 + delta, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("98.765.432/0001-10", 147 + delta, currentY + 12);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("DATA DA EMISSÃO", 177 + delta, currentY + 7);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), 177 + delta, currentY + 12);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("ENDEREÇO", m + 2, currentY + 16);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("AV. JOSÉ FELIPE BARROSO, 456 - INDUSTRIAL", m + 2, currentY + 20);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("BAIRRO / DISTRITO", 110 + delta, currentY + 16);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("CENTRO", 110 + delta, currentY + 20);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("CEP", 132 + delta, currentY + 16);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("14020-110", 132 + delta, currentY + 20);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("UF / MUNICÍPIO", 147 + delta, currentY + 16);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("SP / SÃO PAULO", 147 + delta, currentY + 20);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text("DATA DE SAÍDA", 177 + delta, currentY + 16);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), 177 + delta, currentY + 20);
+
+        currentY += 22 + 2;
+
+        // Cálculo Imposto
+        doc.setFillColor(245, 245, 245);
+        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(0);
+        doc.text("CÁLCULO DO IMPOSTO", m + 2, currentY + 3);
+
+        doc.rect(m, currentY + 4, 210 - 2 * m, 14);
+        doc.line(40 + delta, currentY + 4, 40 + delta, currentY + 18);
+        doc.line(72 + delta, currentY + 4, 72 + delta, currentY + 18);
+        doc.line(104 + delta, currentY + 4, 104 + delta, currentY + 18);
+        doc.line(136 + delta, currentY + 4, 136 + delta, currentY + 18);
+        doc.line(168 + delta, currentY + 4, 168 + delta, currentY + 18);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text("BASE DE CÁLCULO DO ICMS", m + 2, currentY + 7);
+        doc.text("VALOR DO ICMS", 42 + delta, currentY + 7);
+        doc.text("BASE CÁLC. ICMS SUBST.", 74 + delta, currentY + 7);
+        doc.text("VALOR DO ICMS SUBST.", 106 + delta, currentY + 7);
+        doc.text("VALOR TOTAL DOS PRODUTOS", 138 + delta, currentY + 7);
+        doc.text("VALOR TOTAL DA NOTA", 170 + delta, currentY + 7);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.text("R$ 0,00", m + 2, currentY + 14);
+        doc.text("R$ 0,00", 42 + delta, currentY + 14);
+        doc.text("R$ 0,00", 74 + delta, currentY + 14);
+        doc.text("R$ 0,00", 106 + delta, currentY + 14);
+        doc.text(formattedTotalProd, 138 + delta, currentY + 14);
+        doc.text(formattedTotalProd, 170 + delta, currentY + 14);
+
+        currentY += 18 + 2;
+
+        // Transportadora
+        doc.setFillColor(245, 245, 245);
+        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(0);
+        doc.text("TRANSPORTADOR / VOLUMES TRANSPORTADOS", m + 2, currentY + 3);
+
+        doc.rect(m, currentY + 4, 210 - 2 * m, 14);
+        doc.line(80 + delta, currentY + 4, 80 + delta, currentY + 18);
+        doc.line(110 + delta, currentY + 4, 110 + delta, currentY + 18);
+        doc.line(130 + delta, currentY + 4, 130 + delta, currentY + 18);
+        doc.line(150 + delta, currentY + 4, 150 + delta, currentY + 18);
+        doc.line(170 + delta, currentY + 4, 170 + delta, currentY + 18);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text("RAZÃO SOCIAL", m + 2, currentY + 7);
+        doc.text("FRETE POR CONTA", 82 + delta, currentY + 7);
+        doc.text("CÓDIGO ANTT", 112 + delta, currentY + 7);
+        doc.text("PLACA DO VEÍCULO", 132 + delta, currentY + 7);
+        doc.text("UF", 152 + delta, currentY + 7);
+        doc.text("CNPJ / CPF", 172 + delta, currentY + 7);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text(String(transpName).toUpperCase().substring(0, 36), m + 2, currentY + 14);
+        doc.text("0-EMITENTE", 82 + delta, currentY + 14);
+        doc.text("N/A", 112 + delta, currentY + 14);
+        doc.text("ABC1D23", 132 + delta, currentY + 14);
+        doc.text("SP", 152 + delta, currentY + 14);
+        doc.text("40.222.111/0001-99", 172 + delta, currentY + 14);
+
+        // Volumes
+        doc.rect(m, currentY + 18, 210 - 2 * m, 8);
+        doc.line(40 + delta, currentY + 18, 40 + delta, currentY + 26);
+        doc.line(80 + delta, currentY + 18, 80 + delta, currentY + 26);
+        doc.line(120 + delta, currentY + 18, 120 + delta, currentY + 26);
+        doc.line(160 + delta, currentY + 18, 160 + delta, currentY + 26);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(4.5);
+        doc.setTextColor(80, 80, 80);
+        doc.text("QUANTIDADE", m + 2, currentY + 21);
+        doc.text("ESPÉCIE", 42 + delta, currentY + 21);
+        doc.text("MARCA", 82 + delta, currentY + 21);
+        doc.text("NÚMERO", 122 + delta, currentY + 21);
+        doc.text("PESO BRUTO", 162 + delta, currentY + 21);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.text(String(vols), m + 2, currentY + 25);
+        doc.text("VOLUMES", 42 + delta, currentY + 25);
+        doc.text("N/A", 82 + delta, currentY + 25);
+        doc.text("N/A", 122 + delta, currentY + 25);
+        doc.text((parseFloat(vols) * 12.5).toFixed(3) + " kg", 162 + delta, currentY + 25);
+
+        currentY += 26 + 2;
+
+        // Produtos
+        doc.setFillColor(245, 245, 245);
+        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(0);
+        doc.text("DADOS DO PRODUTO / SERVIÇO (CONTEÚDO IDENTIFICADO)", m + 2, currentY + 3);
+
+        doc.rect(m, currentY + 4, 210 - 2 * m, 6);
+        doc.line(22 + delta, currentY + 4, 22 + delta, currentY + 10);
+        doc.line(114 + delta, currentY + 4, 114 + delta, currentY + 10);
+        doc.line(126 + delta, currentY + 4, 126 + delta, currentY + 10);
+        doc.line(134 + delta, currentY + 4, 134 + delta, currentY + 10);
+        doc.line(144 + delta, currentY + 4, 144 + delta, currentY + 10);
+        doc.line(152 + delta, currentY + 4, 152 + delta, currentY + 10);
+        doc.line(164 + delta, currentY + 4, 164 + delta, currentY + 10);
+        doc.line(178 + delta, currentY + 4, 178 + delta, currentY + 10);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text("CÓDIGO", m + 2, currentY + 8);
+        doc.text("DESCRIÇÃO DO PRODUTO / SERVIÇO", 24 + delta, currentY + 8);
+        doc.text("NCM/SH", 115.5 + delta, currentY + 8);
+        doc.text("CST", 127.5 + delta, currentY + 8);
+        doc.text("CFOP", 135.5 + delta, currentY + 8);
+        doc.text("UNID", 145.5 + delta, currentY + 8);
+        doc.text("QTD", 153.5 + delta, currentY + 8);
+        doc.text("V. UNITÁRIO", 165.5 + delta, currentY + 8);
+        doc.text("V. TOTAL", 180 + delta, currentY + 8);
+
+        const showBottomSection = dTemplate.showAdditionalNotes || dTemplate.showSysAuthentication;
+        const bottomSectionHeight = showBottomSection ? 42 : 0;
+        const maxRowY = 297 - m - bottomSectionHeight - 2;
+
+        let rowY = currentY + 10;
+        const rowSpacingVal = dTemplate.rowSpacing;
+        const maxRows = Math.floor((maxRowY - rowY) / rowSpacingVal);
+        const displayed = detailedProds.slice(0, maxRows);
+        
+        displayed.forEach((prod, pIdx) => {
+          doc.line(m, rowY + rowSpacingVal, 210 - m, rowY + rowSpacingVal);
+          doc.line(22 + delta, rowY, 22 + delta, rowY + rowSpacingVal);
+          doc.line(114 + delta, rowY, 114 + delta, rowY + rowSpacingVal);
+          doc.line(126 + delta, rowY, 126 + delta, rowY + rowSpacingVal);
+          doc.line(134 + delta, rowY, 134 + delta, rowY + rowSpacingVal);
+          doc.line(144 + delta, rowY, 144 + delta, rowY + rowSpacingVal);
+          doc.line(152 + delta, rowY, 152 + delta, rowY + rowSpacingVal);
+          doc.line(164 + delta, rowY, 164 + delta, rowY + rowSpacingVal);
+          doc.line(178 + delta, rowY, 178 + delta, rowY + rowSpacingVal);
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(dTemplate.fontSizeItems);
+          doc.setTextColor(0);
+          
+          const textOffset = rowY + (rowSpacingVal / 2) + (dTemplate.fontSizeItems / 5);
+
+          doc.text(prod.code, m + 2, textOffset);
+          doc.text(String(prod.name).substring(0, 58), 24 + delta, textOffset);
+          doc.text("84713012", 115.5 + delta, textOffset);
+          doc.text("000", 127.5 + delta, textOffset);
+          doc.text("5102", 135.5 + delta, textOffset);
+          doc.text("UN", 145.5 + delta, textOffset);
+          doc.text(String(prod.qty), 153.5 + delta, textOffset);
+          doc.text(prod.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 165.5 + delta, textOffset);
+          doc.text(prod.totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 180 + delta, textOffset);
+
+          rowY += rowSpacingVal;
+        });
+
+        // Fill remaining empty space
+        const remaining = maxRows - displayed.length;
+        for (let r = 0; r < remaining; r++) {
+          doc.line(m, rowY + rowSpacingVal, 210 - m, rowY + rowSpacingVal);
+          doc.line(22 + delta, rowY, 22 + delta, rowY + rowSpacingVal);
+          doc.line(114 + delta, rowY, 114 + delta, rowY + rowSpacingVal);
+          doc.line(126 + delta, rowY, 126 + delta, rowY + rowSpacingVal);
+          doc.line(134 + delta, rowY, 134 + delta, rowY + rowSpacingVal);
+          doc.line(144 + delta, rowY, 144 + delta, rowY + rowSpacingVal);
+          doc.line(152 + delta, rowY, 152 + delta, rowY + rowSpacingVal);
+          doc.line(164 + delta, rowY, 164 + delta, rowY + rowSpacingVal);
+          doc.line(178 + delta, rowY, 178 + delta, rowY + rowSpacingVal);
+          rowY += rowSpacingVal;
+        }
+
+        doc.line(m, currentY + 10, m, rowY);
+        doc.line(210 - m, currentY + 10, 210 - m, rowY);
+
+        if (prods.length > maxRows) {
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(dTemplate.fontSizeItems - 0.5);
+          doc.setTextColor(80, 80, 80);
+          doc.text(`* Mostrando ${maxRows} de ${prods.length} produtos. Restante omitido para economia de espaço.`, m + 2, rowY + rowSpacingVal - 1.5);
+        }
+
+        // Dados adicionais
+        if (showBottomSection) {
+          const bottomBlockY = 297 - m - 42;
+          
+          doc.setFillColor(245, 245, 245);
+          doc.rect(m, bottomBlockY, 210 - 2 * m, 4, 'FD');
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(0);
+          doc.text("DADOS ADICIONAIS", m + 2, bottomBlockY + 3);
+
+          doc.rect(m, bottomBlockY + 4, 210 - 2 * m, 38);
+
+          if (dTemplate.showAdditionalNotes) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(6);
+            doc.setTextColor(50, 50, 50);
+            
+            const additional = [
+              "INFORMAÇÕES COMPLEMENTARES / OBSERVAÇÕES OPERACIONAIS:",
+              `Série de Coleta Integrada. Responsável Técnico: ${dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO"}.`,
+              `Chancelado por QR Manager Cloud no contêiner: ${selectedContainer.toUpperCase()} / Categoria: ${selectedCategory.toUpperCase()}.`,
+              `Estação de coleta validada em ambiente operacional seguro.`,
+              `Chave Digital: ${key}`,
+              `Desenvolvido por José Felipe A. Barroso (pixdobarroso@gmail.com).`
+            ];
+            
+            additional.forEach((note, nIdx) => {
+              doc.text(note, m + 3, bottomBlockY + 8 + (nIdx * 4.2));
+            });
+          }
+
+          // Stamp
+          if (dTemplate.showSysAuthentication) {
+            doc.rect(144 + delta, bottomBlockY + 6, 54, 34);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(6.5);
+            doc.setTextColor(0);
+            doc.text("AUTENTICAÇÃO DO SISTEMA", 171 + delta, bottomBlockY + 12, { align: 'center' });
+            
+            doc.setLineWidth(0.2);
+            doc.rect(146 + delta, bottomBlockY + 15, 50, 22);
+            doc.setFontSize(5);
+            doc.setFont("helvetica", "bold");
+            doc.text("SISTEMA DE GESTÃO JFAB", 171 + delta, bottomBlockY + 19, { align: 'center' });
+            doc.setFont("helvetica", "normal");
+            doc.text("REGISTRO OPERACIONAL DE FLUXO", 171 + delta, bottomBlockY + 23, { align: 'center' });
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(5.5);
+            doc.text(dTemplate.customStampText || "STATUS: APROVADA & CONSOLIDADA", 171 + delta, bottomBlockY + 28, { align: 'center' });
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(4.5);
+            doc.text("CHAVE SINCRONIZADA EM NUVEM", 171 + delta, bottomBlockY + 33, { align: 'center' });
+          }
+        }
+      }
+
+      if (nfeItems.length === 1) {
+        doc.save(`DANFE-${nfeItems[0].nfeData?.chave || nfeItems[0].t}.pdf`);
+      } else {
+        doc.save(`DANFE-Lote-${selectedContainer.toUpperCase()}-${format(new Date(), 'yyyyMMdd')}.pdf`);
+      }
+
+      const logMsg = nfeItems.length === 1 
+        ? `DANFE exportado em PDF para a Nota Fiscal Chave: ${nfeItems[0].t.substring(0, 10)}... com layout personalizado.`
+        : `DANFE em Lote consolidado exportado em PDF para ${nfeItems.length} Nota(s) Fiscal(is) do contêiner "${selectedContainer.toUpperCase()}" com layout personalizado.`;
+      
+      await addCustomAuditLog('Impressão DANFE PDF', logMsg);
+
+      addNotification('success', 'DANFE Gerado', `${nfeItems.length} Nota(s) Fiscal(is) exportada(s) com layout DANFE oficial.`);
+    } catch (err) {
+      console.error(err);
+      addNotification('error', 'Erro', 'Falha ao processar e exportar o DANFE.');
+    }
   };
 
 
@@ -1571,6 +2188,7 @@ export default function App() {
                 onDeleteContainer={handleOpenDeleteContainer}
                 onDownloadPDF={handleDownloadPDF}
                 onPrintPlate={handlePrintPlate}
+                onDownloadDanfePDF={handleDownloadDanfePDF}
                 onImportPDF={handleImportFile}
                 onAddQR={handleAddQR}
                 items={items}

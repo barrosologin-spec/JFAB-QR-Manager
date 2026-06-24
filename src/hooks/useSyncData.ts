@@ -690,6 +690,13 @@ export function useSyncData() {
     }
   };
 
+  const addCustomAuditLog = async (action: string, description: string) => {
+    const updatedStorage = { ...storage };
+    appendAuditLog(updatedStorage, action, description);
+    await registerLocalChange(updatedStorage);
+    return true;
+  };
+
   return {
     storage,
     loading,
@@ -710,6 +717,7 @@ export function useSyncData() {
     reattributeOrphans,
     deleteOrphansPermanently,
     importFullStorage,
+    addCustomAuditLog,
     
     // Auth helpers
     currentUser,

@@ -1,6 +1,6 @@
 {
   "name": "JFAB QR Manager",
-  "description": "Gerenciador inteligente de QR Codes com detecção de duplicatas, exportação em PDF e integração com Firebase Realtime Database.",
+  "description": "Gerenciador inteligente de QR Codes com detecção de duplicatas, exportação em PDF e integração com banco de dados centralizado.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

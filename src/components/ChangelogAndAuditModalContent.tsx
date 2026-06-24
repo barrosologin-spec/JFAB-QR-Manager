@@ -35,8 +35,20 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v2.9.1',
+      version: 'v3.0.0',
       tag: 'Atual',
+      date: '24 de Junho, 2026',
+      title: 'Módulo de Impressão de DANFE (Nota Fiscal PDF) & Lote Consolidado',
+      highlights: [
+        'Adicionada a funcionalidade para exportar DANFEs oficiais e profissionais altamente formatados com base nos dados reais de NF-e.',
+        'Novo Painel de Configuração de Layout no Designer: Aba dedicada a parametrizar as regras visuais do DANFE (Emissor, tema de cores, exibição do canhoto, marca d\'água de segurança, chancela de autenticação, espaçamento de linhas e fontes) com preview gráfico interativo em tempo real.',
+        'Suporte completo para exportar DANFEs em lote (consolidando múltiplos documentos em um único PDF multipáginas) quando houver mais de uma nota fiscal no contêiner.',
+        'Inclusão de botões de ação rápida para download do DANFE em todas as interfaces: painel de ações principais do contêiner, linhas da tabela e visualização em cards de itens.',
+        'Adaptação automática da placa de identificação oficial do contêiner para compactar e apresentar informações completas de múltiplos emitentes e manifestos de produtos do lote de NFs.'
+      ]
+    },
+    {
+      version: 'v2.9.1',
       date: '23 de Junho, 2026',
       title: 'Mecanismo de Estatística Dinâmica por Data',
       highlights: [

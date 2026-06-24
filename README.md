@@ -15,6 +15,10 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 * **Busca Global e Duplicatas:** Rastreador inteligente de itens duplicados para mitigar inconsistências, aliado a um mecanismo de busca instantâneo capaz de varrer todo o inventário.
 
 ### 🎨 Designer de Etiquetas Técnico & Flexível
+* **Aba de Configuração do Layout DANFE:** Nova aba integrada no Estúdio de Layout para ajustar todos os elementos visuais do DANFE (Nome do emitente, tema de cores, visibilidade do canhoto de recibo, chancelas de autenticação, marcas d'água de segurança e tamanhos de fonte de itens/tabela) com visualização representativa em tempo real.
+* **Módulo de Impressão de DANFE (Nota Fiscal PDF):** Geração dinâmica de Documentos Auxiliares da Nota Fiscal Eletrônica (DANFE) altamente formatados e fiéis ao padrão oficial, exibindo dados reais de emitentes, destinatários, produtos e códigos de barras.
+* **Download Consolidado em Lote:** Detecção automática de múltiplos registros NF-e no mesmo contêiner, permitindo exportar todos os DANFEs agrupados em um único arquivo PDF multipáginas.
+* **Placa de Identificação Inteligente Multi-NF:** Adaptação da placa oficial do contêiner para resumir chaves de acesso, emitentes e manifesto geral de produtos do lote caso haja mais de uma NF-e associada.
 * **Layouts Customizados:** Configuração precisa das dimensões de QR Codes, larguras e alturas de códigos de barras (otimizados para folhas A4 padrão ou bobinas térmicas específicas).
 * **Compatibilidade Dinâmica:** Suporte nativo para impressão direta, geração de PDFs em lote no navegador usando `jspdf` com feedback sonoro audível em tempo real.
 

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { generateBarcodeDataURL } from '../lib/barcodeUtils';
+import { useSyncData } from '../hooks/useSyncData';
 
 interface DesignerTemplate {
   name: string;
@@ -46,6 +47,22 @@ interface DesignerTemplate {
   aspectRatio: 'plate' | 'thermal' | 'badge';
   padding: number;
   bgTexture: 'clean' | 'grid' | 'dots' | 'gradient';
+}
+
+interface DanfeTemplate {
+  name: string;
+  themeColor: string;
+  showReceipt: boolean;
+  showWatermark: boolean;
+  watermarkText: string;
+  showAdditionalNotes: boolean;
+  customLogoText: string;
+  showSysAuthentication: boolean;
+  customStampText: string;
+  rowSpacing: number;
+  fontSizeHeader: number;
+  fontSizeItems: number;
+  margins: number;
 }
 
 const DEFAULT_TEMPLATES: Record<string, DesignerTemplate> = {
@@ -144,7 +161,8 @@ const DEFAULT_TEMPLATES: Record<string, DesignerTemplate> = {
 };
 
 export function LayoutDesigner() {
-  const [activeSubTab, setActiveSubTab] = useState<'item' | 'plate'>('item');
+  const { addCustomAuditLog } = useSyncData();
+  const [activeSubTab, setActiveSubTab] = useState<'item' | 'plate' | 'danfe'>('item');
 
   // Load custom template item
   const [templateItem, setTemplateItem] = useState<DesignerTemplate>(() => {
@@ -180,11 +198,82 @@ export function LayoutDesigner() {
     };
   });
 
+  // Load custom template danfe
+  const [templateDanfe, setTemplateDanfe] = useState<DanfeTemplate>(() => {
+    const saved = localStorage.getItem('jfab_custom_template_danfe');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        parsed.name = parsed.name || "Layout Padrão DANFE";
+        return parsed;
+      } catch (e) {}
+    }
+    return {
+      name: "Layout Padrão DANFE",
+      themeColor: "#10b981", // Emerald default
+      showReceipt: true,
+      showWatermark: true,
+      watermarkText: "JOSÉ FELIPE A. BARROSO",
+      showAdditionalNotes: true,
+      customLogoText: "EMITENTE AUTOMÁTICO S.A.",
+      showSysAuthentication: true,
+      customStampText: "STATUS: APROVADA & CONSOLIDADA",
+      rowSpacing: 6,
+      fontSizeHeader: 10,
+      fontSizeItems: 6,
+      margins: 8
+    };
+  });
+
+  // Debounced log updates for layout customization
+  useEffect(() => {
+    // Set initial layout payload to avoid logging on first mount
+    const lastLogged = localStorage.getItem('jfab_last_logged_layout');
+    const currentPayload = JSON.stringify({ templateItem, templatePlate, templateDanfe });
+    if (!lastLogged) {
+      localStorage.setItem('jfab_last_logged_layout', currentPayload);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const freshLogged = localStorage.getItem('jfab_last_logged_layout');
+      if (freshLogged && freshLogged !== currentPayload) {
+        addCustomAuditLog('Layout Customizado', 'Ajustes visuais no estúdio de layout (Etiquetas/DANFE) foram consolidados pelo operador.');
+      }
+      localStorage.setItem('jfab_last_logged_layout', currentPayload);
+    }, 4000); // 4 seconds debounce
+    return () => clearTimeout(timer);
+  }, [templateItem, templatePlate, templateDanfe]);
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
-  const [customKey, setCustomKey] = useState("CNT-A789");
+  const [customKey, setCustomKey] = useState("35230912345678000190550010001234561001234567");
 
   // Dynamic template resolver
-  const template = activeSubTab === 'item' ? templateItem : templatePlate;
+  const template = activeSubTab === 'danfe' 
+    ? {
+        name: templateDanfe.name,
+        title: templateDanfe.customLogoText,
+        subtitle: "Documento Auxiliar da Nota Fiscal Eletrônica",
+        showCategory: false,
+        showContainer: false,
+        showTimestamp: true,
+        showFooterNotes: templateDanfe.showAdditionalNotes,
+        footerNotesText: templateDanfe.watermarkText,
+        primaryColor: templateDanfe.themeColor,
+        borderColor: templateDanfe.themeColor,
+        borderWidth: 1,
+        borderRadius: 0,
+        useQrCode: false,
+        qrScale: 1,
+        barcodeScale: 1,
+        fontSizeTitle: templateDanfe.fontSizeHeader,
+        fontSizeDetails: 8,
+        textColor: "#000000",
+        aspectRatio: 'plate' as const,
+        padding: templateDanfe.margins,
+        bgTexture: 'clean' as const,
+      }
+    : activeSubTab === 'item' ? templateItem : templatePlate;
 
   const setTemplate = (updater: DesignerTemplate | ((prev: DesignerTemplate) => DesignerTemplate)) => {
     if (activeSubTab === 'item') {
@@ -194,13 +283,21 @@ export function LayoutDesigner() {
         localStorage.setItem('jfab_custom_template', JSON.stringify(next)); // fallback backward compatibility
         return next;
       });
-    } else {
+    } else if (activeSubTab === 'plate') {
       setTemplatePlate(prev => {
         const next = typeof updater === 'function' ? updater(prev) : updater;
         localStorage.setItem('jfab_custom_template_plate', JSON.stringify(next));
         return next;
       });
     }
+  };
+
+  const setDanfeField = <K extends keyof DanfeTemplate>(field: K, value: DanfeTemplate[K]) => {
+    setTemplateDanfe(prev => {
+      const next = { ...prev, [field]: value };
+      localStorage.setItem('jfab_custom_template_danfe', JSON.stringify(next));
+      return next;
+    });
   };
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -224,7 +321,7 @@ export function LayoutDesigner() {
       localStorage.setItem('jfab_custom_template_item', JSON.stringify(defaultItem));
       localStorage.setItem('jfab_custom_template', JSON.stringify(defaultItem));
       showToast("Configurações da Etiqueta resetadas", 'info');
-    } else {
+    } else if (activeSubTab === 'plate') {
       const defaultPlate = {
         ...DEFAULT_TEMPLATES.industrial,
         name: "Placa Geral de Identificação",
@@ -237,6 +334,25 @@ export function LayoutDesigner() {
       setTemplatePlate(defaultPlate);
       localStorage.setItem('jfab_custom_template_plate', JSON.stringify(defaultPlate));
       showToast("Configurações da Placa do Container resetadas", 'info');
+    } else {
+      const defaultDanfe = {
+        name: "Layout Padrão DANFE",
+        themeColor: "#10b981",
+        showReceipt: true,
+        showWatermark: true,
+        watermarkText: "JOSÉ FELIPE A. BARROSO",
+        showAdditionalNotes: true,
+        customLogoText: "EMITENTE AUTOMÁTICO S.A.",
+        showSysAuthentication: true,
+        customStampText: "STATUS: APROVADA & CONSOLIDADA",
+        rowSpacing: 6,
+        fontSizeHeader: 10,
+        fontSizeItems: 6,
+        margins: 8
+      };
+      setTemplateDanfe(defaultDanfe);
+      localStorage.setItem('jfab_custom_template_danfe', JSON.stringify(defaultDanfe));
+      showToast("Configurações do DANFE resetadas", 'info');
     }
   };
 
@@ -586,7 +702,7 @@ export function LayoutDesigner() {
         </div>
       </div>
 
-      {/* Abas do Estúdio - Configurar Placas vs Etiquetas dos Itens */}
+      {/* Abas do Estúdio - Configurar Placas vs Etiquetas dos Itens vs DANFE */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1.5 p-1 bg-slate-100/70 dark:bg-slate-900/40 rounded-2xl w-full sm:w-fit">
         <button
           type="button"
@@ -612,6 +728,18 @@ export function LayoutDesigner() {
           <Layout size={14} className="shrink-0" />
           Configurar Placa do Container
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('danfe')}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+            activeSubTab === 'danfe'
+              ? 'bg-white dark:bg-slate-850 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/40 dark:border-slate-800/20'
+              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 border border-transparent'
+          }`}
+        >
+          <FileText size={14} className="shrink-0" />
+          Configurar DANFE (NF-e)
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -623,344 +751,569 @@ export function LayoutDesigner() {
               <Sparkles size={18} className="text-blue-500 shrink-0" />
               <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Modelos de Início Rápido</h3>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {(Object.keys(DEFAULT_TEMPLATES) as Array<keyof typeof DEFAULT_TEMPLATES>).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleApplyPreset(key)}
-                  className={`p-3 border text-left rounded-2xl transition-all duration-300 cursor-pointer ${
-                    template.name === DEFAULT_TEMPLATES[key].name 
-                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-bold shadow-sm'
-                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-medium'
-                  }`}
-                >
-                  <span className="text-[10px] block text-slate-400 uppercase font-black tracking-widest mb-1">PRESET</span>
-                  <span className="text-[11px] leading-tight block">{DEFAULT_TEMPLATES[key].name}</span>
-                </button>
-              ))}
-            </div>
+            {activeSubTab === 'danfe' ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { id: 'emerald', label: 'Esmeralda Moderno', color: '#10b981' },
+                  { id: 'slate', label: 'Slate Profissional', color: '#475569' },
+                  { id: 'navy', label: 'Azul Corporativo', color: '#1e3a8a' },
+                  { id: 'classic', label: 'Classic Black', color: '#1e293b' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setDanfeField('themeColor', item.color);
+                      showToast(`Estilo "${item.label}" aplicado!`, 'success');
+                    }}
+                    className={`p-3 border text-left rounded-2xl transition-all duration-300 cursor-pointer ${
+                      templateDanfe.themeColor === item.color 
+                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-sm'
+                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <span className="text-[10px] block text-slate-400 uppercase font-black tracking-widest mb-1">STYLING</span>
+                    <span className="text-[11px] leading-tight block">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(Object.keys(DEFAULT_TEMPLATES) as Array<keyof typeof DEFAULT_TEMPLATES>).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleApplyPreset(key)}
+                    className={`p-3 border text-left rounded-2xl transition-all duration-300 cursor-pointer ${
+                      template.name === DEFAULT_TEMPLATES[key].name 
+                        ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-bold shadow-sm'
+                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <span className="text-[10px] block text-slate-400 uppercase font-black tracking-widest mb-1">PRESET</span>
+                    <span className="text-[11px] leading-tight block">{DEFAULT_TEMPLATES[key].name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Configuration Form Sections */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-3xl shadow-sm divide-y divide-slate-100 dark:divide-slate-805">
-            {/* Secção 1: Conteúdo de Textos */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Heading size={18} className="text-sky-500 shrink-0" />
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Conteúdo do Cabeçalho & Textos</h4>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Código de Teste</label>
-                  <input 
-                    type="text" 
-                    value={customKey}
-                    onChange={(e) => setCustomKey(e.target.value.toUpperCase())}
-                    className="w-full text-xs font-mono font-bold px-3 py-2 border rounded-xl"
-                    placeholder="Ex: CNT-A789"
-                  />
+          {activeSubTab === 'danfe' ? (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-3xl shadow-sm divide-y divide-slate-100 dark:divide-slate-805">
+              {/* Secção 1: Identidade Visual & Cores (DANFE) */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Palette size={18} className="text-emerald-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Identidade Visual & Cores (DANFE)</h4>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Título Principal</label>
-                  <input 
-                    type="text" 
-                    value={template.title}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtítulo secundário</label>
-                  <input 
-                    type="text" 
-                    value={template.subtitle}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, subtitle: e.target.value }))}
-                    className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações do rodapé</label>
-                  <input 
-                    type="text" 
-                    value={template.footerNotesText}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, footerNotesText: e.target.value }))}
-                    className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
-                    disabled={!template.showFooterNotes}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Secção 2: Layout de Identificadores (QR vs Barcode) */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Tag size={18} className="text-teal-500 shrink-0" />
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Identificadores Digitais (Barcode / QR)</h4>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Estilo de Código</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTemplate(prev => ({ ...prev, useQrCode: true }))}
-                      className={`flex-1 p-3 border rounded-xl text-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                        template.useQrCode 
-                          ? 'border-blue-600 bg-blue-50/20 text-blue-600' 
-                          : 'border-slate-200 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      QR Code (Ideal para Câmeras)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTemplate(prev => ({ ...prev, useQrCode: false }))}
-                      className={`flex-1 p-3 border rounded-xl text-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                        !template.useQrCode 
-                          ? 'border-blue-600 bg-blue-50/20 text-blue-600' 
-                          : 'border-slate-200 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      Barcode 1D (Leitores Físicos)
-                    </button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Emitente</label>
+                    <input 
+                      type="text" 
+                      value={templateDanfe.customLogoText}
+                      onChange={(e) => setDanfeField('customLogoText', e.target.value)}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
+                      placeholder="Ex: EMITENTE AUTOMÁTICO S.A."
+                    />
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Tamanho / Proporção do Código</label>
-                  {template.useQrCode ? (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>Escala do QR Code</span>
-                        <span className="font-mono text-blue-600 font-bold">{(template.qrScale * 100).toFixed(0)}%</span>
-                      </div>
-                      <input 
-                        type="range"
-                        min="0.6"
-                        max="1.5"
-                        step="0.05"
-                        value={template.qrScale}
-                        onChange={(e) => setTemplate(prev => ({ ...prev, qrScale: parseFloat(e.target.value) }))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>Escala do Código de Barras</span>
-                        <span className="font-mono text-blue-600 font-bold">{(template.barcodeScale * 100).toFixed(0)}%</span>
-                      </div>
-                      <input 
-                        type="range"
-                        min="0.7"
-                        max="1.4"
-                        step="0.05"
-                        value={template.barcodeScale}
-                        onChange={(e) => setTemplate(prev => ({ ...prev, barcodeScale: parseFloat(e.target.value) }))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Secção 3: Cores, Molduras & Temas */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Palette size={18} className="text-amber-500 shrink-0" />
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Temas & Molde de Cores</h4>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Paleta Primária</label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {['#1e3a8a', '#0f172a', '#0284c7', '#0d9488', '#ea580c', '#ffffff', '#dc2626', '#000000'].map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setTemplate(prev => ({ ...prev, primaryColor: color, borderColor: color }))}
-                        className={`w-8 h-8 rounded-full border transition-all cursor-pointer flex items-center justify-center relative ${
-                          template.primaryColor === color ? 'ring-2 ring-blue-500 scale-110 shadow-sm' : 'hover:scale-105 border-slate-300'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      >
-                        {template.primaryColor === color && (
-                          <Check size={14} className={color === '#ffffff' ? 'text-black' : 'text-white'} />
-                        )}
-                      </button>
-                    ))}
-                    <div className="flex items-center gap-1.5 ml-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Cor de Destaque</label>
+                    <div className="flex items-center gap-2">
                       <input 
                         type="color" 
-                        value={template.primaryColor}
-                        onChange={(e) => setTemplate(prev => ({ ...prev, primaryColor: e.target.value, borderColor: e.target.value }))}
+                        value={templateDanfe.themeColor}
+                        onChange={(e) => setDanfeField('themeColor', e.target.value)}
                         className="w-8 h-8 rounded-full cursor-pointer overflow-hidden border border-slate-300"
                       />
-                      <span className="text-[10px] font-mono text-slate-400 uppercase">{template.primaryColor}</span>
+                      <span className="text-xs font-mono text-slate-500">{templateDanfe.themeColor}</span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Estilo da Placa</label>
-                  <div className="flex gap-2">
-                    {[
-                      { key: 'plate', label: 'Placa Normal' },
-                      { key: 'thermal', label: 'Térmica 100x150' },
-                      { key: 'badge', label: 'Crachá de ID' }
-                    ].map((sz) => (
+              {/* Secção 2: Ativação de Módulos (DANFE) */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Settings2 size={18} className="text-blue-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Ativação de Módulos & Documentos</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={templateDanfe.showReceipt}
+                      onChange={(e) => setDanfeField('showReceipt', e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Exibir Canhoto</span>
+                      <span className="text-[9px] text-slate-400">Recibo no topo da nota</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={templateDanfe.showWatermark}
+                      onChange={(e) => setDanfeField('showWatermark', e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Exibir Marca d'Água</span>
+                      <span className="text-[9px] text-slate-400">Texto em marca de fundo</span>
+                    </div>
+                  </label>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Texto da Marca d'Água</label>
+                    <input 
+                      type="text" 
+                      value={templateDanfe.watermarkText}
+                      onChange={(e) => setDanfeField('watermarkText', e.target.value)}
+                      disabled={!templateDanfe.showWatermark}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl disabled:opacity-50"
+                      placeholder="Ex: JOSÉ FELIPE A. BARROSO"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={templateDanfe.showAdditionalNotes}
+                      onChange={(e) => setDanfeField('showAdditionalNotes', e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Exibir Observações</span>
+                      <span className="text-[9px] text-slate-400">Dados complementares e operacionais</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={templateDanfe.showSysAuthentication}
+                      onChange={(e) => setDanfeField('showSysAuthentication', e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Exibir Autenticação</span>
+                      <span className="text-[9px] text-slate-400">Carimbo de validação digital</span>
+                    </div>
+                  </label>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Texto da Autenticação</label>
+                    <input 
+                      type="text" 
+                      value={templateDanfe.customStampText}
+                      onChange={(e) => setDanfeField('customStampText', e.target.value)}
+                      disabled={!templateDanfe.showSysAuthentication}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl disabled:opacity-50"
+                      placeholder="Ex: STATUS: APROVADA & CONSOLIDADA"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secção 3: Layout & Spacing (DANFE) */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sliders size={18} className="text-amber-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Layout & Espaçamento Geométrico</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Margens das Páginas</span>
+                      <span className="font-mono text-emerald-600 font-bold">{templateDanfe.margins}mm</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="5"
+                      max="12"
+                      step="1"
+                      value={templateDanfe.margins}
+                      onChange={(e) => setDanfeField('margins', parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Altura das Linhas de Itens</span>
+                      <span className="font-mono text-emerald-600 font-bold">{templateDanfe.rowSpacing}mm</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="5"
+                      max="8"
+                      step="1"
+                      value={templateDanfe.rowSpacing}
+                      onChange={(e) => setDanfeField('rowSpacing', parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Fonte dos Cabeçalhos</span>
+                      <span className="font-mono text-emerald-600 font-bold">{templateDanfe.fontSizeHeader}pt</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="8"
+                      max="12"
+                      step="1"
+                      value={templateDanfe.fontSizeHeader}
+                      onChange={(e) => setDanfeField('fontSizeHeader', parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Fonte dos Itens (Tabela)</span>
+                      <span className="font-mono text-emerald-600 font-bold">{templateDanfe.fontSizeItems}pt</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="5"
+                      max="8"
+                      step="1"
+                      value={templateDanfe.fontSizeItems}
+                      onChange={(e) => setDanfeField('fontSizeItems', parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-3xl shadow-sm divide-y divide-slate-100 dark:divide-slate-805">
+              {/* Secção 1: Conteúdo de Textos */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Heading size={18} className="text-sky-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Conteúdo do Cabeçalho & Textos</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Código de Teste</label>
+                    <input 
+                      type="text" 
+                      value={customKey}
+                      onChange={(e) => setCustomKey(e.target.value.toUpperCase())}
+                      className="w-full text-xs font-mono font-bold px-3 py-2 border rounded-xl"
+                      placeholder="Ex: CNT-A789"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Título Principal</label>
+                    <input 
+                      type="text" 
+                      value={template.title}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtítulo secundário</label>
+                    <input 
+                      type="text" 
+                      value={template.subtitle}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, subtitle: e.target.value }))}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações do rodapé</label>
+                    <input 
+                      type="text" 
+                      value={template.footerNotesText}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, footerNotesText: e.target.value }))}
+                      className="w-full text-xs font-bold px-3 py-2 border rounded-xl"
+                      disabled={!template.showFooterNotes}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secção 2: Layout de Identificadores (QR vs Barcode) */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Tag size={18} className="text-teal-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Identificadores Digitais (Barcode / QR)</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Estilo de Código</label>
+                    <div className="flex gap-2">
                       <button
-                        key={sz.key}
                         type="button"
-                        onClick={() => setTemplate(prev => ({ ...prev, aspectRatio: sz.key as any }))}
-                        className={`flex-1 p-2 border rounded-xl text-center text-[11px] font-bold transition-all cursor-pointer ${
-                          template.aspectRatio === sz.key 
+                        onClick={() => setTemplate(prev => ({ ...prev, useQrCode: true }))}
+                        className={`flex-1 p-3 border rounded-xl text-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          template.useQrCode 
                             ? 'border-blue-600 bg-blue-50/20 text-blue-600' 
                             : 'border-slate-200 text-slate-600 dark:text-slate-400'
                         }`}
                       >
-                        {sz.label}
+                        QR Code (Ideal para Câmeras)
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => setTemplate(prev => ({ ...prev, useQrCode: false }))}
+                        className={`flex-1 p-3 border rounded-xl text-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          !template.useQrCode 
+                            ? 'border-blue-600 bg-blue-50/20 text-blue-600' 
+                            : 'border-slate-200 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        Barcode 1D (Leitores Físicos)
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Tamanho / Proporção do Código</label>
+                    {template.useQrCode ? (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-slate-400">
+                          <span>Escala do QR Code</span>
+                          <span className="font-mono text-blue-600 font-bold">{(template.qrScale * 100).toFixed(0)}%</span>
+                        </div>
+                        <input 
+                          type="range"
+                          min="0.6"
+                          max="1.5"
+                          step="0.05"
+                          value={template.qrScale}
+                          onChange={(e) => setTemplate(prev => ({ ...prev, qrScale: parseFloat(e.target.value) }))}
+                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-slate-400">
+                          <span>Escala do Código de Barras</span>
+                          <span className="font-mono text-blue-600 font-bold">{(template.barcodeScale * 100).toFixed(0)}%</span>
+                        </div>
+                        <input 
+                          type="range"
+                          min="0.7"
+                          max="1.4"
+                          step="0.05"
+                          value={template.barcodeScale}
+                          onChange={(e) => setTemplate(prev => ({ ...prev, barcodeScale: parseFloat(e.target.value) }))}
+                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Secção 3: Cores, Molduras & Temas */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Palette size={18} className="text-amber-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Temas & Molde de Cores</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Paleta Primária</label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {['#1e3a8a', '#0f172a', '#0284c7', '#0d9488', '#ea580c', '#ffffff', '#dc2626', '#000000'].map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setTemplate(prev => ({ ...prev, primaryColor: color, borderColor: color }))}
+                          className={`w-8 h-8 rounded-full border transition-all cursor-pointer flex items-center justify-center relative ${
+                            template.primaryColor === color ? 'ring-2 ring-blue-500 scale-110 shadow-sm' : 'hover:scale-105 border-slate-300'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        >
+                          {template.primaryColor === color && (
+                            <Check size={14} className={color === '#ffffff' ? 'text-black' : 'text-white'} />
+                          )}
+                        </button>
+                      ))}
+                      <div className="flex items-center gap-1.5 ml-2">
+                        <input 
+                          type="color" 
+                          value={template.primaryColor}
+                          onChange={(e) => setTemplate(prev => ({ ...prev, primaryColor: e.target.value, borderColor: e.target.value }))}
+                          className="w-8 h-8 rounded-full cursor-pointer overflow-hidden border border-slate-300"
+                        />
+                        <span className="text-[10px] font-mono text-slate-400 uppercase">{template.primaryColor}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Estilo da Placa</label>
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'plate', label: 'Placa Normal' },
+                        { key: 'thermal', label: 'Térmica 100x150' },
+                        { key: 'badge', label: 'Crachá de ID' }
+                      ].map((sz) => (
+                        <button
+                          key={sz.key}
+                          type="button"
+                          onClick={() => setTemplate(prev => ({ ...prev, aspectRatio: sz.key as any }))}
+                          className={`flex-1 p-2 border rounded-xl text-center text-[11px] font-bold transition-all cursor-pointer ${
+                            template.aspectRatio === sz.key 
+                              ? 'border-blue-600 bg-blue-50/20 text-blue-600' 
+                              : 'border-slate-200 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {sz.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Secção 4: Ajustes Finos de Margens & Cantos */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sliders size={18} className="text-purple-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Ajustes Geométricos & Moldura</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Board Border Width */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Espessura da Borda</span>
+                      <span className="font-mono text-blue-600 font-bold">{template.borderWidth}px</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="8"
+                      step="1"
+                      value={template.borderWidth}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, borderWidth: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+
+                  {/* Border Radius */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Arredondamento dos Cantos</span>
+                      <span className="font-mono text-blue-600 font-bold">{template.borderRadius}px</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="32"
+                      step="2"
+                      value={template.borderRadius}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, borderRadius: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+
+                  {/* Padding */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Preenchimento Interno (Padding)</span>
+                      <span className="font-mono text-blue-600 font-bold">{template.padding}px</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="12"
+                      max="40"
+                      step="2"
+                      value={template.padding}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, padding: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+
+                  {/* Text Size Title */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Tamanho do Título</span>
+                      <span className="font-mono text-blue-600 font-bold">{template.fontSizeTitle}pt</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="12"
+                      max="24"
+                      step="1"
+                      value={template.fontSizeTitle}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, fontSizeTitle: parseInt(e.target.value) }))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secção 5: Toggles Visuais */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Settings2 size={18} className="text-emerald-500 shrink-0" />
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Filtros & Visibilidade de Dados</h4>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={template.showCategory}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, showCategory: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Categoria</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={template.showContainer}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, showContainer: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Container</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={template.showTimestamp}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, showTimestamp: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Data</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={template.showFooterNotes}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, showFooterNotes: e.target.checked }))}
+                      className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Observação</span>
+                  </label>
                 </div>
               </div>
             </div>
-
-            {/* Secção 4: Ajustes Finos de Margens & Cantos */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Sliders size={18} className="text-purple-500 shrink-0" />
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Ajustes Geométricos & Moldura</h4>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Board Border Width */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Espessura da Borda</span>
-                    <span className="font-mono text-blue-600 font-bold">{template.borderWidth}px</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="8"
-                    step="1"
-                    value={template.borderWidth}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, borderWidth: parseInt(e.target.value) }))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                </div>
-
-                {/* Border Radius */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Arredondamento dos Cantos</span>
-                    <span className="font-mono text-blue-600 font-bold">{template.borderRadius}px</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="32"
-                    step="2"
-                    value={template.borderRadius}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, borderRadius: parseInt(e.target.value) }))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                </div>
-
-                {/* Padding */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Preenchimento Interno (Padding)</span>
-                    <span className="font-mono text-blue-600 font-bold">{template.padding}px</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="12"
-                    max="40"
-                    step="2"
-                    value={template.padding}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, padding: parseInt(e.target.value) }))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                </div>
-
-                {/* Text Size Title */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Tamanho do Título</span>
-                    <span className="font-mono text-blue-600 font-bold">{template.fontSizeTitle}pt</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="12"
-                    max="24"
-                    step="1"
-                    value={template.fontSizeTitle}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, fontSizeTitle: parseInt(e.target.value) }))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Secção 5: Toggles Visuais */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Settings2 size={18} className="text-emerald-500 shrink-0" />
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Filtros & Visibilidade de Dados</h4>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    checked={template.showCategory}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, showCategory: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Categoria</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    checked={template.showContainer}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, showContainer: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Container</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    checked={template.showTimestamp}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, showTimestamp: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Mostrar Data</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    checked={template.showFooterNotes}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, showFooterNotes: e.target.checked }))}
-                    className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Observação</span>
-                </label>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column: Sticky Blueprint Preview Rendering */}
@@ -972,7 +1325,7 @@ export function LayoutDesigner() {
                 <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">Preview Técnico do Molde (Live Blueprint)</h3>
               </div>
               <span className="px-2.5 py-1 bg-slate-800 rounded-full font-mono text-[9px] font-bold text-cyan-400">
-                {template.aspectRatio === 'thermal' ? '100x150mm - Térmica' : (template.aspectRatio === 'badge' ? '85x54mm - Crachá' : '140x90mm - Placa')}
+                {activeSubTab === 'danfe' ? 'A4 - Layout DANFE (NF-e)' : (template.aspectRatio === 'thermal' ? '100x150mm - Térmica' : (template.aspectRatio === 'badge' ? '85x54mm - Crachá' : '140x90mm - Placa'))}
               </span>
             </div>
 
@@ -1153,6 +1506,182 @@ export function LayoutDesigner() {
                     </p>
                   </div>
                 </div>
+              ) : activeSubTab === 'danfe' ? (
+                /* SIMULATED DANFE PDF MINIATURE (A4 PROPORTIONS) */
+                <div 
+                  className="bg-white text-slate-950 relative shadow-2xl flex flex-col justify-between transition-all duration-305 select-none overflow-hidden"
+                  style={{
+                    width: '345px',
+                    height: '488px',
+                    padding: `${templateDanfe.margins * 1.2}px`,
+                    fontFamily: 'Inter, sans-serif'
+                  }}
+                >
+                  {/* Watermarks */}
+                  {templateDanfe.showWatermark && (
+                    <div className="absolute inset-0 flex flex-col justify-around items-center pointer-events-none opacity-[0.04] overflow-hidden">
+                      <div className="text-[12px] font-black tracking-widest text-slate-900 uppercase transform -rotate-25 whitespace-nowrap">
+                        {templateDanfe.watermarkText || "JOSÉ FELIPE A. BARROSO"}
+                      </div>
+                      <div className="text-[12px] font-black tracking-widest text-slate-900 uppercase transform -rotate-25 whitespace-nowrap">
+                        {templateDanfe.watermarkText || "JOSÉ FELIPE A. BARROSO"}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Canhoto / Receipt Section */}
+                  {templateDanfe.showReceipt && (
+                    <div className="border border-dashed p-1 mb-1 text-[5px] space-y-0.5" style={{ borderColor: templateDanfe.themeColor }}>
+                      <div className="flex justify-between font-bold" style={{ color: templateDanfe.themeColor }}>
+                        <span>RECEBEMOS OS PRODUTOS DA NOTA FISCAL INDICADA ABAIXO</span>
+                        <span>NF-e Nº 000.000.123</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 pt-1 text-slate-500">
+                        <div className="border-t pt-0.5">DATA DE RECEBIMENTO</div>
+                        <div className="border-t pt-0.5 col-span-2">ASSINATURA DO RECEBEDOR</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Main Header of DANFE */}
+                  <div className="grid grid-cols-12 gap-1 border p-1 text-[5px]" style={{ borderColor: templateDanfe.themeColor }}>
+                    <div className="col-span-5 border-r pr-1 flex flex-col justify-center" style={{ borderColor: templateDanfe.themeColor }}>
+                      <span className="font-mono text-[4px] text-slate-400 block uppercase">EMISSOR DIGITAL</span>
+                      <h3 className="font-black leading-tight uppercase truncate" style={{ color: templateDanfe.themeColor, fontSize: `${templateDanfe.fontSizeHeader - 2}px` }}>
+                        {templateDanfe.customLogoText || "EMITENTE AUTOMÁTICO S.A."}
+                      </h3>
+                      <span className="text-[4px] text-slate-400 truncate">AV. BRASIL, 1500 - DISTRITO INDUSTRIAL</span>
+                    </div>
+
+                    <div className="col-span-3 border-r px-1 text-center flex flex-col justify-center" style={{ borderColor: templateDanfe.themeColor }}>
+                      <span className="font-bold block">DANFE</span>
+                      <span className="text-[3.5px] text-slate-500 block leading-none">DOC. AUXILIAR DE NF-e</span>
+                      <div className="mt-0.5 font-bold">Nº 000.000.123<br />SÉRIE 001</div>
+                    </div>
+
+                    <div className="col-span-4 pl-1 flex flex-col justify-center items-center">
+                      <div className="w-full h-3 bg-slate-200 rounded flex items-center justify-center font-mono text-[4px] text-slate-500">
+                        [ BARCODE ]
+                      </div>
+                      <div className="text-[3.5px] mt-0.5 text-slate-500 truncate w-full text-center">
+                        KEY: 3526 0612 3456 7890 0112 5500 1000 0001
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Destinatário Section */}
+                  <div className="mt-1 text-[5px]">
+                    <div className="bg-slate-100 p-0.5 font-bold uppercase tracking-wide border-x border-t" style={{ borderColor: templateDanfe.themeColor, color: templateDanfe.themeColor }}>
+                      DESTINATÁRIO / REMETENTE
+                    </div>
+                    <div className="border p-1 grid grid-cols-4 gap-1" style={{ borderColor: templateDanfe.themeColor }}>
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block font-normal">NOME / RAZÃO SOCIAL</span>
+                        <span className="font-bold truncate block">CLIENTE OPERACIONAL DE LOGÍSTICA S.A.</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-normal">CNPJ / CPF</span>
+                        <span className="font-bold">12.345.678/0001-90</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-normal">EMISSÃO</span>
+                        <span className="font-bold">{new Date().toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cálculo Imposto Section */}
+                  <div className="mt-1 text-[5px]">
+                    <div className="bg-slate-100 p-0.5 font-bold uppercase tracking-wide border-x border-t" style={{ borderColor: templateDanfe.themeColor, color: templateDanfe.themeColor }}>
+                      CÁLCULO DO IMPOSTO
+                    </div>
+                    <div className="border p-1 grid grid-cols-4 gap-1 text-center" style={{ borderColor: templateDanfe.themeColor }}>
+                      <div>
+                        <span className="text-slate-400 block font-normal">BASE CÁLC. ICMS</span>
+                        <span className="font-bold">R$ 0,00</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-normal">VALOR DO ICMS</span>
+                        <span className="font-bold">R$ 0,00</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-normal">V. TOTAL PRODUTOS</span>
+                        <span className="font-bold text-emerald-600">R$ 1.250,00</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-normal">V. TOTAL DA NOTA</span>
+                        <span className="font-bold text-emerald-600">R$ 1.250,00</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Produtos Table */}
+                  <div className="mt-1 flex-1 flex flex-col justify-start text-[5px]">
+                    <div className="bg-slate-100 p-0.5 font-bold uppercase tracking-wide border-x border-t" style={{ borderColor: templateDanfe.themeColor, color: templateDanfe.themeColor }}>
+                      PRODUTOS E SERVIÇOS
+                    </div>
+                    <div className="border rounded-b overflow-hidden flex-1 flex flex-col" style={{ borderColor: templateDanfe.themeColor }}>
+                      <div className="bg-slate-50 p-1 flex justify-between font-black border-b" style={{ borderColor: templateDanfe.themeColor, fontSize: `${templateDanfe.fontSizeItems}px` }}>
+                        <span>CÓDIGO / DESCRIÇÃO DO PRODUTO</span>
+                        <div className="flex gap-4">
+                          <span>QTD</span>
+                          <span>UN</span>
+                          <span>VALOR</span>
+                        </div>
+                      </div>
+                      <div className="p-1 bg-white flex-1 flex flex-col justify-around">
+                        {[
+                          { code: '001', name: 'PEÇA REFORÇADA DE AÇO INOX PL88', qty: 1, un: 'UN', val: 'R$ 450,00' },
+                          { code: '002', name: 'SUPORTE ADAPTADOR METALICO AUTO9', qty: 2, un: 'UN', val: 'R$ 350,00' },
+                          { code: '003', name: 'CABO CONDUTOR TRIFÁSICO BRUT COLEX', qty: 1, un: 'MT', val: 'R$ 100,00' }
+                        ].map((p, idx) => (
+                          <div 
+                            key={idx} 
+                            className="flex justify-between border-b border-dashed border-slate-100 pb-0.5 text-slate-600"
+                            style={{ 
+                              paddingTop: `${templateDanfe.rowSpacing - 5}px`, 
+                              paddingBottom: `${templateDanfe.rowSpacing - 5}px`,
+                              fontSize: `${templateDanfe.fontSizeItems}px`
+                            }}
+                          >
+                            <span className="truncate max-w-[140px]">{p.code} - {p.name}</span>
+                            <div className="flex gap-4 font-bold">
+                              <span>{p.qty}</span>
+                              <span>{p.un}</span>
+                              <span>{p.val}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dados Adicionais & Autenticação Stamp Section */}
+                  {(templateDanfe.showAdditionalNotes || templateDanfe.showSysAuthentication) && (
+                    <div className="grid grid-cols-12 gap-1 mt-1 pt-1.5 border-t" style={{ borderColor: templateDanfe.themeColor }}>
+                      <div className="col-span-7 text-[4px] text-slate-500 leading-tight">
+                        {templateDanfe.showAdditionalNotes && (
+                          <>
+                            <span className="font-bold block uppercase" style={{ color: templateDanfe.themeColor }}>DADOS ADICIONAIS</span>
+                            <p className="truncate">Série de Coleta Integrada. Resp. José Felipe.</p>
+                            <p className="truncate">Chancelado por QR Manager Cloud.</p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="col-span-5">
+                        {templateDanfe.showSysAuthentication && (
+                          <div className="border p-0.5 text-center rounded relative overflow-hidden bg-slate-50/50 flex flex-col justify-center" style={{ borderColor: templateDanfe.themeColor }}>
+                            <span className="font-black text-[3.5px] leading-tight text-emerald-600 block truncate max-w-full">
+                              {templateDanfe.customStampText || "STATUS: APROVADA & CONSOLIDADA"}
+                            </span>
+                            <span className="text-[3px] text-slate-400 block font-mono leading-none">AUTENTICADO JFAB CLOUD</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 /* Actual customizable layout container for standard labels */
                 <div 
@@ -1250,18 +1779,35 @@ export function LayoutDesigner() {
               )}
 
               {/* Graphical Blueprint overlays displaying sizes inside preview column */}
-              <div className="absolute bottom-2 left-3 font-mono text-[9px] text-slate-500">
-                Canto: <span className="text-cyan-400">{template.borderRadius}mm</span>
-              </div>
-              <div className="absolute bottom-2 right-3 font-mono text-[9px] text-slate-500">
-                Borda: <span className="text-cyan-400">{template.borderWidth}px</span>
-              </div>
+              {activeSubTab === 'danfe' ? (
+                <>
+                  <div className="absolute bottom-2 left-3 font-mono text-[9px] text-slate-500">
+                    Margem: <span className="text-emerald-400">{templateDanfe.margins}mm</span>
+                  </div>
+                  <div className="absolute bottom-2 right-3 font-mono text-[9px] text-slate-500">
+                    Linha: <span className="text-emerald-400">{templateDanfe.rowSpacing}mm</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="absolute bottom-2 left-3 font-mono text-[9px] text-slate-500">
+                    Canto: <span className="text-cyan-400">{template.borderRadius}mm</span>
+                  </div>
+                  <div className="absolute bottom-2 right-3 font-mono text-[9px] text-slate-500">
+                    Borda: <span className="text-cyan-400">{template.borderWidth}px</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
               <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Instruções de Produção</span>
               <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                Ao selecionar <b>"Exportar PDF"</b>, um arquivo de dimensões calibradas especificamente para o formato escolhido (Placa de 140x90mm, etiqueta térmica de 100x150mm ou crachá compacto de 85x54mm) será gerado a partir do motor integrado canvas jsPDF.
+                {activeSubTab === 'danfe' ? (
+                  <span>Ao selecionar <b>"Exportar PDF"</b>, um arquivo no formato de Nota Fiscal Eletrônica (A4) com margens e tamanhos de tabela customizados pelo painel lateral será gerado via motor jsPDF.</span>
+                ) : (
+                  <span>Ao selecionar <b>"Exportar PDF"</b>, um arquivo de dimensões calibradas especificamente para o formato escolhido (Placa de 140x90mm, etiqueta térmica de 100x150mm ou crachá compacto de 85x54mm) será gerado a partir do motor integrado canvas jsPDF.</span>
+                )}
               </p>
             </div>
             
@@ -1270,7 +1816,7 @@ export function LayoutDesigner() {
               className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md active:scale-95 duration-100 flex items-center justify-center gap-2 cursor-pointer"
             >
               <FileText size={14} />
-              Imprimir Placa de Teste ({customKey})
+              {activeSubTab === 'danfe' ? 'Imprimir DANFE de Teste' : `Imprimir Placa de Teste (${customKey})`}
             </button>
           </div>
         </div>

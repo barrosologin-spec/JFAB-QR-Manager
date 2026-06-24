@@ -65,6 +65,7 @@ interface QRPanelProps {
   onFinalize: () => void;
   isFinalized: boolean;
   activePreset: ColorPreset;
+  onDownloadDanfePDF?: (targetItems?: QRItem[]) => void;
 }
 
 export function QRPanel({
@@ -75,7 +76,8 @@ export function QRPanel({
   onAddCategory, onManageCategories, onAddContainer, onDeleteContainer,
   onDownloadPDF, onPrintPlate, onImportPDF,
   onAddQR, items, onEditItem, onDeleteItem,
-  onFinalize, isFinalized, activePreset
+  onFinalize, isFinalized, activePreset,
+  onDownloadDanfePDF
 }: QRPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +105,8 @@ export function QRPanel({
     }
     return { total, dups, active: total - dups };
   }, [storage, selectedCategory, selectedDate]);
+
+  const nfeItems = useMemo(() => items.filter(i => i.nfeData), [items]);
   
   // Custom Paginated Data Table States
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -672,6 +676,25 @@ export function QRPanel({
                 </button>
               </div>
 
+              {nfeItems.length > 0 && onDownloadDanfePDF && (
+                <button
+                  onClick={() => onDownloadDanfePDF()}
+                  title={nfeItems.length > 1 ? "Baixar DANFEs consolidadas em Lote" : "Baixar DANFE (Nota Fiscal PDF)"}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition active:scale-95 cursor-pointer text-center font-bold text-[10px] uppercase tracking-wider shadow-sm",
+                    isFinalized
+                      ? "bg-emerald-600 hover:bg-emerald-500 border-transparent text-white"
+                      : "bg-emerald-500/20 border-emerald-500/30 text-emerald-600 opacity-50 cursor-not-allowed"
+                  )}
+                  disabled={!isFinalized}
+                >
+                  <FileText size={15} />
+                  <span>
+                    {nfeItems.length > 1 ? `Baixar DANFEs em Lote (${nfeItems.length})` : "Baixar DANFE (Nota Fiscal)"}
+                  </span>
+                </button>
+              )}
+
               {!isFinalized ? (
                 <>
                   <button
@@ -1210,6 +1233,15 @@ export function QRPanel({
                               {/* Actions on row */}
                               <td className="py-2 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {item.nfeData && onDownloadDanfePDF && (
+                                    <button
+                                      onClick={() => onDownloadDanfePDF([item])}
+                                      title="Baixar DANFE (Nota Fiscal PDF)"
+                                      className="p-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-emerald-650 dark:text-emerald-400 rounded-lg transition border border-emerald-200/50"
+                                    >
+                                      <FileText size={11} className="stroke-[2.5]" />
+                                    </button>
+                                  )}
                                   {!isFinalized ? (
                                     <>
                                       <button 
@@ -1337,6 +1369,7 @@ export function QRPanel({
                         onEdit={(text) => onEditItem(originalIdx, text)}
                         onDelete={() => onDeleteItem(originalIdx)}
                         disabled={isFinalized}
+                        onDownloadDanfe={onDownloadDanfePDF ? () => onDownloadDanfePDF([item]) : undefined}
                       />
                     );
                   })}
@@ -1375,9 +1408,10 @@ interface QRItemCardProps {
   onEdit: (t: string) => void;
   onDelete: () => void;
   disabled?: boolean;
+  onDownloadDanfe?: () => void;
 }
 
-const QRItemCard: React.FC<QRItemCardProps> = ({item, onEdit, onDelete, disabled}) => {
+const QRItemCard: React.FC<QRItemCardProps> = ({item, onEdit, onDelete, disabled, onDownloadDanfe}) => {
   const isQR = !/^\d+$/.test(item.t);
   
   return (
@@ -1385,6 +1419,19 @@ const QRItemCard: React.FC<QRItemCardProps> = ({item, onEdit, onDelete, disabled
       "group relative bg-white border rounded-xl p-3.5 shadow-xs hover:shadow-md transition duration-200 hover:-translate-y-0.5 active:translate-y-0 border-slate-100 flex flex-col items-center justify-between h-[185px] overflow-hidden",
       disabled ? "border-emerald-100 opacity-90 shadow-none hover:shadow-none hover:translate-y-0" : "border-slate-100"
     )}>
+      
+      {item.nfeData && onDownloadDanfe && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownloadDanfe();
+          }}
+          title="Baixar DANFE (Nota Fiscal PDF)"
+          className="absolute top-2 left-1.5 p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg shadow-xs transition cursor-pointer z-10"
+        >
+          <FileText size={10} />
+        </button>
+      )}
       
       {/* Time title element */}
       <div className="w-full text-center text-[8.5px] text-slate-400 font-extrabold uppercase tracking-tight select-none">
