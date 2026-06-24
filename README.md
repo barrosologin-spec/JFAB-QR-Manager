@@ -95,9 +95,9 @@ Caso seja a sua primeira execução e o banco de dados esteja zerado, o sistema 
 
 ---
 
-## 📦 Como enviar o projeto para o seu repositório no GitHub
+## 📦 Como enviar o projeto para o seu repositório remoto
 
-Siga o passo a passo abaixo para enviar os arquivos para o seu próprio repositório GitHub:
+Siga o passo a passo abaixo para enviar os arquivos para o seu próprio repositório:
 
 1. **Abra o terminal** na pasta raiz do seu projeto.
 2. **Inicialize o Git** (se ainda não estiver inicializado):
@@ -112,10 +112,10 @@ Siga o passo a passo abaixo para enviar os arquivos para o seu próprio reposit�
    ```bash
    git commit -m "feat: implementa JFAB QR Manager"
    ```
-5. **Crie o seu repositório no GitHub** no endereço: `https://github.com/barrosologin-spec/JFAB-QR-Manager`.
+5. **Crie o seu repositório remoto** no seu serviço de hospedagem preferido.
 6. **Vincule o repositório remoto** e defina a branch principal como `main`:
    ```bash
-   git remote add origin https://github.com/barrosologin-spec/JFAB-QR-Manager.git
+   git remote add origin <URL_DO_REPOSITORIO>
    git branch -M main
    ```
 7. **Envie os commits** para o repositório:
