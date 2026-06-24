@@ -35,8 +35,18 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.0.0',
+      version: 'v3.1.0',
       tag: 'Atual',
+      date: '24 de Junho, 2026',
+      title: 'Paginação Dinâmica & Saneamento de Metadados de Marcas Externas',
+      highlights: [
+        'Implementado suporte nativo para múltiplas páginas (paginação automática) no DANFE e no manifesto de carga (placa de identificação do contêiner), permitindo imprimir listas com grandes volumes de produtos em folhas subsequentes e numeradas de forma limpa.',
+        'Saneamento total de referências a marcas externas (Google AI Studio, Meta, etc.) de todos os metadados de configuração, scripts e documentações do projeto.',
+        'Novo controle liga/desliga de paginação dinâmica adicionado às abas de layout do Designer de Placas e DANFE para conferir maior flexibilidade operacional.'
+      ]
+    },
+    {
+      version: 'v3.0.0',
       date: '24 de Junho, 2026',
       title: 'Módulo de Impressão de DANFE (Nota Fiscal PDF) & Lote Consolidado',
       highlights: [

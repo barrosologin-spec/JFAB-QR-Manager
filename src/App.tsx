@@ -870,6 +870,9 @@ export default function App() {
       doc.setFontSize(7.5);
       doc.setTextColor(textColor);
 
+      let currentPage = 1;
+      const allowMultiPage = plateTemplate ? (plateTemplate.allowMultiPage ?? true) : true;
+
       if (isNFe) {
         const allNfeProducts: any[] = [];
         nfeItems.forEach(ni => {
@@ -902,11 +905,103 @@ export default function App() {
           });
 
           if (allNfeProducts.length > listLimit) {
-            const diff = allNfeProducts.length - listLimit;
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.setTextColor(100, 116, 139);
-            doc.text(`+ ${diff} outros produtos estão listados nas notas fiscais originais.`, 16, tableY + 7 + (listLimit * 7.2) + 2);
+            if (allowMultiPage) {
+              const remainingProducts = allNfeProducts.slice(listLimit);
+              const itemsPerPage = 32;
+              const totalPages = 1 + Math.ceil(remainingProducts.length / itemsPerPage);
+              
+              for (let rIdx = 0; rIdx < remainingProducts.length; rIdx += itemsPerPage) {
+                doc.addPage();
+                currentPage++;
+                
+                // Draw Watermarks on subsequent pages
+                doc.setTextColor(243, 244, 246);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(24);
+                doc.text("JOSÉ FELIPE A. BARROSO", 105, 90, { align: 'center', angle: 25 });
+                doc.text("JOSÉ FELIPE A. BARROSO", 105, 160, { align: 'center', angle: 25 });
+                
+                // Draw Border
+                doc.setDrawColor(primaryColor);
+                doc.setLineWidth(mainBorderWidth);
+                doc.rect(10, 10, 190, 277);
+                
+                // Header
+                doc.setTextColor(primaryColor);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.text("MANIFESTO DE COMPOSIÇÃO DE CARGA - CONTINUAÇÃO", 16, 20);
+                
+                doc.setTextColor(100, 116, 139);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: JOSÉ FELIPE A. BARROSO`, 16, 25);
+                
+                // Page indicator top right
+                doc.setFont("helvetica", "bold");
+                doc.text(`PÁGINA ${currentPage} DE ${totalPages}`, 194, 20, { align: 'right' });
+                
+                // Line below header
+                doc.setDrawColor(primaryColor);
+                doc.setLineWidth(0.4);
+                doc.line(15, 28, 195, 28);
+                
+                // Table headers
+                doc.setTextColor(100, 116, 139);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(7.5);
+                doc.text("#", 16, 34);
+                doc.text("DESCRIÇÃO DO PRODUTO", 26, 34);
+                doc.text("QTD", 142, 34);
+                
+                doc.setDrawColor(primaryColor);
+                doc.setLineWidth(0.3);
+                doc.line(15, 36, 195, 36);
+                
+                const pageProducts = remainingProducts.slice(rIdx, rIdx + itemsPerPage);
+                pageProducts.forEach((prod, pIdx) => {
+                  const globalIndex = listLimit + rIdx + pIdx;
+                  const itemY = 42 + (pIdx * 6.8);
+                  
+                  doc.setDrawColor(241, 245, 250);
+                  doc.setLineWidth(0.2);
+                  doc.line(15, itemY + 1.8, 195, itemY + 1.8);
+                  
+                  doc.setFont("helvetica", "bold");
+                  doc.setTextColor(textColor);
+                  doc.text(String(globalIndex + 1), 16, itemY);
+                  
+                  let labelText = prod.nome || "N/A";
+                  if (labelText.length > 56) {
+                    labelText = labelText.substring(0, 53) + "...";
+                  }
+                  doc.text(labelText, 26, itemY);
+                  
+                  doc.setFont("helvetica", "normal");
+                  doc.text((prod.qtd || "1") + " UN", 142, itemY);
+                });
+                
+                // Footer
+                doc.setDrawColor(primaryColor);
+                doc.setLineWidth(0.4);
+                doc.line(15, 266, 195, 266);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(6.5);
+                doc.setTextColor(148, 163, 184);
+                doc.text(plateTemplate && plateTemplate.showFooterNotes ? plateTemplate.footerNotesText : "ESTA ETICA/PLACA É UM COMPROVANTE OFICIAL DE MOVIMENTAÇÃO DE CARGA E LOGÍSTICA DIGITAL.", 105, 273, { align: 'center' });
+                
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(100, 116, 139);
+                doc.text("CHANCELADO POR: JOSÉ FELIPE A. BARROSO • GESTÃO DE SISTEMAS INTELIGENTES", 105, 278, { align: 'center' });
+              }
+            } else {
+              const diff = allNfeProducts.length - listLimit;
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(8);
+              doc.setTextColor(100, 116, 139);
+              doc.text(`+ ${diff} outros produtos estão listados nas notas fiscais originais.`, 16, tableY + 7 + (listLimit * 7.2) + 2);
+            }
           }
         } else {
           doc.setFont("helvetica", "italic");
@@ -918,16 +1013,13 @@ export default function App() {
         displayItems.forEach((item, index) => {
           const itemY = tableY + 7 + (index * 7.2);
           
-          // Zebra lines or separator
           doc.setDrawColor(241, 245, 250);
           doc.setLineWidth(0.2);
           doc.line(15, itemY + 1.8, 195, itemY + 1.8);
 
-          // Index
           doc.setFont("helvetica", "bold");
           doc.text(String(index + 1), 16, itemY);
           
-          // Item Value (truncated if very long)
           doc.setFont("helvetica", "bold");
           let labelText = item.t;
           if (labelText.length > 56) {
@@ -935,19 +1027,110 @@ export default function App() {
           }
           doc.text(labelText, 26, itemY);
 
-          // Item Timestamp
           doc.setFont("helvetica", "normal");
           const scanTime = format(item.ts, 'dd/MM/yyyy HH:mm:ss');
           doc.text(scanTime, 142, itemY);
         });
 
-        // Show extra item indicator if overflowed
         if (items.length > listLimit) {
-          const diff = items.length - listLimit;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(8);
-          doc.setTextColor(100, 116, 139);
-          doc.text(`+ ${diff} outros itens cadastrados estão presentes neste contêiner e salvos no sistema.`, 16, tableY + 84);
+          if (allowMultiPage) {
+            const remainingItems = items.slice(listLimit);
+            const itemsPerPage = 32;
+            const totalPages = 1 + Math.ceil(remainingItems.length / itemsPerPage);
+            
+            for (let rIdx = 0; rIdx < remainingItems.length; rIdx += itemsPerPage) {
+              doc.addPage();
+              currentPage++;
+              
+              // Draw Watermarks on subsequent pages
+              doc.setTextColor(243, 244, 246);
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(24);
+              doc.text("JOSÉ FELIPE A. BARROSO", 105, 90, { align: 'center', angle: 25 });
+              doc.text("JOSÉ FELIPE A. BARROSO", 105, 160, { align: 'center', angle: 25 });
+              
+              // Draw Border
+              doc.setDrawColor(primaryColor);
+              doc.setLineWidth(mainBorderWidth);
+              doc.rect(10, 10, 190, 277);
+              
+              // Header
+              doc.setTextColor(primaryColor);
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.text("MANIFESTO DE COMPOSIÇÃO DE CARGA - CONTINUAÇÃO", 16, 20);
+              
+              doc.setTextColor(100, 116, 139);
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(8);
+              doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: JOSÉ FELIPE A. BARROSO`, 16, 25);
+              
+              // Page indicator top right
+              doc.setFont("helvetica", "bold");
+              doc.text(`PÁGINA ${currentPage} DE ${totalPages}`, 194, 20, { align: 'right' });
+              
+              // Line below header
+              doc.setDrawColor(primaryColor);
+              doc.setLineWidth(0.4);
+              doc.line(15, 28, 195, 28);
+              
+              // Table headers
+              doc.setTextColor(100, 116, 139);
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(7.5);
+              doc.text("#", 16, 34);
+              doc.text("VALOR CADASTRADO DO QR CODE / ETIQUETA", 26, 34);
+              doc.text("DATA E HORÁRIO DE ESCANEAMENTO", 142, 34);
+              
+              doc.setDrawColor(primaryColor);
+              doc.setLineWidth(0.3);
+              doc.line(15, 36, 195, 36);
+              
+              const pageItems = remainingItems.slice(rIdx, rIdx + itemsPerPage);
+              pageItems.forEach((item, pIdx) => {
+                const globalIndex = listLimit + rIdx + pIdx;
+                const itemY = 42 + (pIdx * 6.8);
+                
+                doc.setDrawColor(241, 245, 250);
+                doc.setLineWidth(0.2);
+                doc.line(15, itemY + 1.8, 195, itemY + 1.8);
+                
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(textColor);
+                doc.text(String(globalIndex + 1), 16, itemY);
+                
+                let labelText = item.t;
+                if (labelText.length > 56) {
+                  labelText = labelText.substring(0, 53) + "...";
+                }
+                doc.text(labelText, 26, itemY);
+                
+                doc.setFont("helvetica", "normal");
+                const scanTime = format(item.ts, 'dd/MM/yyyy HH:mm:ss');
+                doc.text(scanTime, 142, itemY);
+              });
+              
+              // Footer
+              doc.setDrawColor(primaryColor);
+              doc.setLineWidth(0.4);
+              doc.line(15, 266, 195, 266);
+              
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(6.5);
+              doc.setTextColor(148, 163, 184);
+              doc.text(plateTemplate && plateTemplate.showFooterNotes ? plateTemplate.footerNotesText : "ESTA ETICA/PLACA É UM COMPROVANTE OFICIAL DE MOVIMENTAÇÃO DE CARGA E LOGÍSTICA DIGITAL.", 105, 273, { align: 'center' });
+              
+              doc.setFont("helvetica", "bold");
+              doc.setTextColor(100, 116, 139);
+              doc.text("CHANCELADO POR: JOSÉ FELIPE A. BARROSO • GESTÃO DE SISTEMAS INTELIGENTES", 105, 278, { align: 'center' });
+            }
+          } else {
+            const diff = items.length - listLimit;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`+ ${diff} outros itens cadastrados estão presentes neste contêiner e salvos no sistema.`, 16, tableY + 84);
+          }
         } else if (items.length === 0) {
           doc.setFont("helvetica", "italic");
           doc.setTextColor(148, 163, 184);
@@ -1204,7 +1387,8 @@ export default function App() {
       rowSpacing: 6,
       fontSizeHeader: 10,
       fontSizeItems: 6,
-      margins: 8
+      margins: 8,
+      allowMultiPage: true
     };
     try {
       const saved = localStorage.getItem('jfab_custom_template_danfe');
@@ -1277,6 +1461,44 @@ export default function App() {
         });
 
         const formattedTotalProd = totalProdValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        const showBottomSection = dTemplate.showAdditionalNotes || dTemplate.showSysAuthentication;
+        const bottomSectionHeight = showBottomSection ? 42 : 0;
+        
+        // Calculate pagination parameters
+        const rowSpacingVal = dTemplate.rowSpacing;
+        const p1StartY = (dTemplate.showReceipt ? (m + 18 + 2) : m) + 48 + 2 + 22 + 2 + 18 + 2 + 26 + 2 + 4;
+        const p1MaxRowY = 297 - m - 2; // Maximum row Y on page 1 (without bottom section)
+        const p1MaxRowYIfLast = 297 - m - bottomSectionHeight - 2; // Maximum row Y on page 1 if it is the only/last page
+        
+        const p1MaxRowsIfLast = Math.floor((p1MaxRowYIfLast - p1StartY) / rowSpacingVal);
+        const p1MaxRowsIfMulti = Math.floor((p1MaxRowY - p1StartY) / rowSpacingVal);
+        
+        let totalPages = 1;
+        let p1RowsToDraw = p1MaxRowsIfLast;
+        let isMultiPage = false;
+        
+        if (detailedProds.length > p1MaxRowsIfLast && (dTemplate.allowMultiPage !== false)) {
+          isMultiPage = true;
+          p1RowsToDraw = p1MaxRowsIfMulti;
+          
+          let remainingCount = detailedProds.length - p1MaxRowsIfMulti;
+          const subPageStartY = m + 22; // simplified products start Y on subsequent pages
+          const subPageMaxRowY = 297 - m - 2; // without bottom section
+          const subPageMaxRowYIfLast = 297 - m - bottomSectionHeight - 2; // with bottom section
+          
+          const subPageMaxRowsIfLast = Math.floor((subPageMaxRowYIfLast - (subPageStartY + 10)) / rowSpacingVal);
+          const subPageMaxRowsIfMulti = Math.floor((subPageMaxRowY - (subPageStartY + 10)) / rowSpacingVal);
+          
+          while (remainingCount > 0) {
+            totalPages++;
+            if (remainingCount <= subPageMaxRowsIfLast) {
+              break;
+            } else {
+              remainingCount -= subPageMaxRowsIfMulti;
+            }
+          }
+        }
         
         // Watermark if enabled (drawn first so background)
         if (dTemplate.showWatermark) {
@@ -1357,7 +1579,7 @@ export default function App() {
         doc.setFontSize(8);
         doc.text(`Nº ${String(number).padStart(9, '0')}`, 106 + delta, currentY + 30, { align: 'center' });
         doc.text(`SÉRIE ${series}`, 106 + delta, currentY + 34, { align: 'center' });
-        doc.text("FOLHA 01/01", 106 + delta, currentY + 38, { align: 'center' });
+        doc.text(`FOLHA 01/${String(totalPages).padStart(2, '0')}`, 106 + delta, currentY + 38, { align: 'center' });
 
         // Barcode
         try {
@@ -1586,16 +1808,11 @@ export default function App() {
         doc.text("V. UNITÁRIO", 165.5 + delta, currentY + 8);
         doc.text("V. TOTAL", 180 + delta, currentY + 8);
 
-        const showBottomSection = dTemplate.showAdditionalNotes || dTemplate.showSysAuthentication;
-        const bottomSectionHeight = showBottomSection ? 42 : 0;
-        const maxRowY = 297 - m - bottomSectionHeight - 2;
+        // Draw Page 1 Products
+        const p1Displayed = detailedProds.slice(0, p1RowsToDraw);
+        let rowY = p1StartY;
 
-        let rowY = currentY + 10;
-        const rowSpacingVal = dTemplate.rowSpacing;
-        const maxRows = Math.floor((maxRowY - rowY) / rowSpacingVal);
-        const displayed = detailedProds.slice(0, maxRows);
-        
-        displayed.forEach((prod, pIdx) => {
+        p1Displayed.forEach((prod, pIdx) => {
           doc.line(m, rowY + rowSpacingVal, 210 - m, rowY + rowSpacingVal);
           doc.line(22 + delta, rowY, 22 + delta, rowY + rowSpacingVal);
           doc.line(114 + delta, rowY, 114 + delta, rowY + rowSpacingVal);
@@ -1625,33 +1842,35 @@ export default function App() {
           rowY += rowSpacingVal;
         });
 
-        // Fill remaining empty space
-        const remaining = maxRows - displayed.length;
-        for (let r = 0; r < remaining; r++) {
-          doc.line(m, rowY + rowSpacingVal, 210 - m, rowY + rowSpacingVal);
-          doc.line(22 + delta, rowY, 22 + delta, rowY + rowSpacingVal);
-          doc.line(114 + delta, rowY, 114 + delta, rowY + rowSpacingVal);
-          doc.line(126 + delta, rowY, 126 + delta, rowY + rowSpacingVal);
-          doc.line(134 + delta, rowY, 134 + delta, rowY + rowSpacingVal);
-          doc.line(144 + delta, rowY, 144 + delta, rowY + rowSpacingVal);
-          doc.line(152 + delta, rowY, 152 + delta, rowY + rowSpacingVal);
-          doc.line(164 + delta, rowY, 164 + delta, rowY + rowSpacingVal);
-          doc.line(178 + delta, rowY, 178 + delta, rowY + rowSpacingVal);
-          rowY += rowSpacingVal;
+        // Fill remaining space on page 1 if single page
+        if (!isMultiPage) {
+          const remaining = p1RowsToDraw - p1Displayed.length;
+          for (let r = 0; r < remaining; r++) {
+            doc.line(m, rowY + rowSpacingVal, 210 - m, rowY + rowSpacingVal);
+            doc.line(22 + delta, rowY, 22 + delta, rowY + rowSpacingVal);
+            doc.line(114 + delta, rowY, 114 + delta, rowY + rowSpacingVal);
+            doc.line(126 + delta, rowY, 126 + delta, rowY + rowSpacingVal);
+            doc.line(134 + delta, rowY, 134 + delta, rowY + rowSpacingVal);
+            doc.line(144 + delta, rowY, 144 + delta, rowY + rowSpacingVal);
+            doc.line(152 + delta, rowY, 152 + delta, rowY + rowSpacingVal);
+            doc.line(164 + delta, rowY, 164 + delta, rowY + rowSpacingVal);
+            doc.line(178 + delta, rowY, 178 + delta, rowY + rowSpacingVal);
+            rowY += rowSpacingVal;
+          }
         }
 
         doc.line(m, currentY + 10, m, rowY);
         doc.line(210 - m, currentY + 10, 210 - m, rowY);
 
-        if (prods.length > maxRows) {
+        if (!isMultiPage && detailedProds.length > p1RowsToDraw) {
           doc.setFont("helvetica", "italic");
           doc.setFontSize(dTemplate.fontSizeItems - 0.5);
           doc.setTextColor(80, 80, 80);
-          doc.text(`* Mostrando ${maxRows} de ${prods.length} produtos. Restante omitido para economia de espaço.`, m + 2, rowY + rowSpacingVal - 1.5);
+          doc.text(`* Mostrando ${p1RowsToDraw} de ${detailedProds.length} produtos. Restante omitido para economia de espaço.`, m + 2, rowY + rowSpacingVal - 1.5);
         }
 
-        // Dados adicionais
-        if (showBottomSection) {
+        // Dados adicionais (Page 1 footer if single page)
+        if (!isMultiPage && showBottomSection) {
           const bottomBlockY = 297 - m - 42;
           
           doc.setFillColor(245, 245, 245);
@@ -1704,6 +1923,207 @@ export default function App() {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(4.5);
             doc.text("CHAVE SINCRONIZADA EM NUVEM", 171 + delta, bottomBlockY + 33, { align: 'center' });
+          }
+        }
+
+        // Subsequent Pages (if multi-page)
+        if (isMultiPage) {
+          let currentProdIdx = p1RowsToDraw;
+          let currentPageNum = 1;
+          
+          while (currentProdIdx < detailedProds.length) {
+            doc.addPage();
+            currentPageNum++;
+            
+            // Draw Watermark if enabled
+            if (dTemplate.showWatermark) {
+              doc.setTextColor(242, 242, 242);
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(14);
+              doc.text(dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO", 50, 100, { angle: 335 });
+              doc.text(dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO", 50, 180, { angle: 335 });
+            }
+            
+            // Border
+            doc.setDrawColor(themeRgb.r, themeRgb.g, themeRgb.b);
+            doc.setLineWidth(0.3);
+            doc.rect(m, m, 210 - 2 * m, 297 - 2 * m);
+            
+            // Simplified Header Box
+            const headerBoxY = m;
+            const headerBoxH = 18;
+            doc.rect(m, headerBoxY, 210 - 2 * m, headerBoxH);
+            doc.line(124 + delta, headerBoxY, 124 + delta, headerBoxY + headerBoxH);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7.5);
+            doc.setTextColor(0);
+            doc.text("EMITENTE: " + String(dTemplate.customLogoText || emitName).toUpperCase().substring(0, 36), m + 3, headerBoxY + 5);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(6);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`CNPJ: ${emitCnpj}  |  AV. INDUSTRIAL DAS NAÇÕES, 1200 - SP`, m + 3, headerBoxY + 10);
+            doc.text(`CHAVE: ${formattedKey.substring(0, 32)}...`, m + 3, headerBoxY + 14);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8.5);
+            doc.setTextColor(0);
+            doc.text("DANFE - CONTINUAÇÃO", 162 + delta, headerBoxY + 6, { align: 'center' });
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(6.5);
+            doc.text(`FOLHA ${String(currentPageNum).padStart(2, '0')}/${String(totalPages).padStart(2, '0')}`, 162 + delta, headerBoxY + 11, { align: 'center' });
+            doc.text(`NF-e: ${String(number).padStart(9, '0')}  SÉRIE: ${series}`, 162 + delta, headerBoxY + 15, { align: 'center' });
+
+            // Table headers
+            const subPageStartY = m + 22;
+            doc.setFillColor(245, 245, 245);
+            doc.rect(m, subPageStartY, 210 - 2 * m, 4, 'FD');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(6.5);
+            doc.setTextColor(0);
+            doc.text("DADOS DO PRODUTO / SERVIÇO (CONTEÚDO CONTINUAÇÃO)", m + 2, subPageStartY + 3);
+            
+            doc.rect(m, subPageStartY + 4, 210 - 2 * m, 6);
+            doc.line(22 + delta, subPageStartY + 4, 22 + delta, subPageStartY + 10);
+            doc.line(114 + delta, subPageStartY + 4, 114 + delta, subPageStartY + 10);
+            doc.line(126 + delta, subPageStartY + 4, 126 + delta, subPageStartY + 10);
+            doc.line(134 + delta, subPageStartY + 4, 134 + delta, subPageStartY + 10);
+            doc.line(144 + delta, subPageStartY + 4, 144 + delta, subPageStartY + 10);
+            doc.line(152 + delta, subPageStartY + 4, 152 + delta, subPageStartY + 10);
+            doc.line(164 + delta, subPageStartY + 4, 164 + delta, subPageStartY + 10);
+            doc.line(178 + delta, subPageStartY + 4, 178 + delta, subPageStartY + 10);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(5);
+            doc.setTextColor(80, 80, 80);
+            doc.text("CÓDIGO", m + 2, subPageStartY + 8);
+            doc.text("DESCRIÇÃO DO PRODUTO / SERVIÇO", 24 + delta, subPageStartY + 8);
+            doc.text("NCM/SH", 115.5 + delta, subPageStartY + 8);
+            doc.text("CST", 127.5 + delta, subPageStartY + 8);
+            doc.text("CFOP", 135.5 + delta, subPageStartY + 8);
+            doc.text("UNID", 145.5 + delta, subPageStartY + 8);
+            doc.text("QTD", 153.5 + delta, subPageStartY + 8);
+            doc.text("V. UNITÁRIO", 165.5 + delta, subPageStartY + 8);
+            doc.text("V. TOTAL", 180 + delta, subPageStartY + 8);
+            
+            const remainingCount = detailedProds.length - currentProdIdx;
+            const subPageMaxRowY = 297 - m - 2;
+            const subPageMaxRowYIfLast = 297 - m - bottomSectionHeight - 2;
+            
+            const subPageMaxRowsIfLast = Math.floor((subPageMaxRowYIfLast - (subPageStartY + 10)) / rowSpacingVal);
+            const subPageMaxRowsIfMulti = Math.floor((subPageMaxRowY - (subPageStartY + 10)) / rowSpacingVal);
+            
+            let isCurrentPageLast = remainingCount <= subPageMaxRowsIfLast;
+            let rowsToDraw = isCurrentPageLast ? subPageMaxRowsIfLast : subPageMaxRowsIfMulti;
+            
+            const pageDisplayed = detailedProds.slice(currentProdIdx, currentProdIdx + rowsToDraw);
+            let subRowY = subPageStartY + 10;
+            
+            pageDisplayed.forEach((prod, pIdx) => {
+              doc.line(m, subRowY + rowSpacingVal, 210 - m, subRowY + rowSpacingVal);
+              doc.line(22 + delta, subRowY, 22 + delta, subRowY + rowSpacingVal);
+              doc.line(114 + delta, subRowY, 114 + delta, subRowY + rowSpacingVal);
+              doc.line(126 + delta, subRowY, 126 + delta, subRowY + rowSpacingVal);
+              doc.line(134 + delta, subRowY, 134 + delta, subRowY + rowSpacingVal);
+              doc.line(144 + delta, subRowY, 144 + delta, subRowY + rowSpacingVal);
+              doc.line(152 + delta, subRowY, 152 + delta, subRowY + rowSpacingVal);
+              doc.line(164 + delta, subRowY, 164 + delta, subRowY + rowSpacingVal);
+              doc.line(178 + delta, subRowY, 178 + delta, subRowY + rowSpacingVal);
+
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(dTemplate.fontSizeItems);
+              doc.setTextColor(0);
+              
+              const textOffset = subRowY + (rowSpacingVal / 2) + (dTemplate.fontSizeItems / 5);
+
+              doc.text(prod.code, m + 2, textOffset);
+              doc.text(String(prod.name).substring(0, 58), 24 + delta, textOffset);
+              doc.text("84713012", 115.5 + delta, textOffset);
+              doc.text("000", 127.5 + delta, textOffset);
+              doc.text("5102", 135.5 + delta, textOffset);
+              doc.text("UN", 145.5 + delta, textOffset);
+              doc.text(String(prod.qty), 153.5 + delta, textOffset);
+              doc.text(prod.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 165.5 + delta, textOffset);
+              doc.text(prod.totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 180 + delta, textOffset);
+
+              subRowY += rowSpacingVal;
+            });
+            
+            if (isCurrentPageLast) {
+              const remaining = rowsToDraw - pageDisplayed.length;
+              for (let r = 0; r < remaining; r++) {
+                doc.line(m, subRowY + rowSpacingVal, 210 - m, subRowY + rowSpacingVal);
+                doc.line(22 + delta, subRowY, 22 + delta, subRowY + rowSpacingVal);
+                doc.line(114 + delta, subRowY, 114 + delta, subRowY + rowSpacingVal);
+                doc.line(126 + delta, subRowY, 126 + delta, subRowY + rowSpacingVal);
+                doc.line(134 + delta, subRowY, 134 + delta, subRowY + rowSpacingVal);
+                doc.line(144 + delta, subRowY, 144 + delta, subRowY + rowSpacingVal);
+                doc.line(152 + delta, subRowY, 152 + delta, subRowY + rowSpacingVal);
+                doc.line(164 + delta, subRowY, 164 + delta, subRowY + rowSpacingVal);
+                doc.line(178 + delta, subRowY, 178 + delta, subRowY + rowSpacingVal);
+                subRowY += rowSpacingVal;
+              }
+            }
+            
+            doc.line(m, subPageStartY + 10, m, subRowY);
+            doc.line(210 - m, subPageStartY + 10, 210 - m, subRowY);
+            
+            if (isCurrentPageLast && showBottomSection) {
+              const bottomBlockY = 297 - m - 42;
+              
+              doc.setFillColor(245, 245, 245);
+              doc.rect(m, bottomBlockY, 210 - 2 * m, 4, 'FD');
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(7);
+              doc.setTextColor(0);
+              doc.text("DADOS ADICIONAIS", m + 2, bottomBlockY + 3);
+
+              doc.rect(m, bottomBlockY + 4, 210 - 2 * m, 38);
+
+              if (dTemplate.showAdditionalNotes) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(6);
+                doc.setTextColor(50, 50, 50);
+                
+                const additional = [
+                  "INFORMAÇÕES COMPLEMENTARES / OBSERVAÇÕES OPERACIONAIS:",
+                  `Série de Coleta Integrada. Responsável Técnico: ${dTemplate.watermarkText || "JOSÉ FELIPE A. BARROSO"}.`,
+                  `Chancelado por QR Manager Cloud no contêiner: ${selectedContainer.toUpperCase()} / Categoria: ${selectedCategory.toUpperCase()}.`,
+                  `Estação de coleta validada em ambiente operacional seguro.`,
+                  `Chave Digital: ${key}`,
+                  `Desenvolvido por José Felipe A. Barroso (pixdobarroso@gmail.com).`
+                ];
+                
+                additional.forEach((note, nIdx) => {
+                  doc.text(note, m + 3, bottomBlockY + 8 + (nIdx * 4.2));
+                });
+              }
+
+              if (dTemplate.showSysAuthentication) {
+                doc.rect(144 + delta, bottomBlockY + 6, 54, 34);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(6.5);
+                doc.setTextColor(0);
+                doc.text("AUTENTICAÇÃO DO SISTEMA", 171 + delta, bottomBlockY + 12, { align: 'center' });
+                
+                doc.setLineWidth(0.2);
+                doc.rect(146 + delta, bottomBlockY + 15, 50, 22);
+                doc.setFontSize(5);
+                doc.setFont("helvetica", "bold");
+                doc.text("SISTEMA DE GESTÃO JFAB", 171 + delta, bottomBlockY + 19, { align: 'center' });
+                doc.setFont("helvetica", "normal");
+                doc.text("REGISTRO OPERACIONAL DE FLUXO", 171 + delta, bottomBlockY + 23, { align: 'center' });
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(5.5);
+                doc.text(dTemplate.customStampText || "STATUS: APROVADA & CONSOLIDADA", 171 + delta, bottomBlockY + 28, { align: 'center' });
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(4.5);
+                doc.text("CHAVE SINCRONIZADA EM NUVEM", 171 + delta, bottomBlockY + 33, { align: 'center' });
+              }
+            }
+            
+            currentProdIdx += rowsToDraw;
           }
         }
       }

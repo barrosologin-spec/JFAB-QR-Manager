@@ -47,6 +47,7 @@ interface DesignerTemplate {
   aspectRatio: 'plate' | 'thermal' | 'badge';
   padding: number;
   bgTexture: 'clean' | 'grid' | 'dots' | 'gradient';
+  allowMultiPage?: boolean;
 }
 
 interface DanfeTemplate {
@@ -63,6 +64,7 @@ interface DanfeTemplate {
   fontSizeHeader: number;
   fontSizeItems: number;
   margins: number;
+  allowMultiPage?: boolean;
 }
 
 const DEFAULT_TEMPLATES: Record<string, DesignerTemplate> = {
@@ -194,7 +196,8 @@ export function LayoutDesigner() {
       subtitle: "CONTÊINER DE LOGÍSTICA DIGITAL",
       aspectRatio: 'plate',
       primaryColor: '#dc2626', // Red default for plate
-      borderColor: '#dc2626'
+      borderColor: '#dc2626',
+      allowMultiPage: true
     };
   });
 
@@ -221,7 +224,8 @@ export function LayoutDesigner() {
       rowSpacing: 6,
       fontSizeHeader: 10,
       fontSizeItems: 6,
-      margins: 8
+      margins: 8,
+      allowMultiPage: true
     };
   });
 
@@ -842,6 +846,19 @@ export function LayoutDesigner() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none col-span-1 md:col-span-2">
+                    <input 
+                      type="checkbox"
+                      checked={templateDanfe.allowMultiPage ?? true}
+                      onChange={(e) => setDanfeField('allowMultiPage', e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Permitir Múltiplas Páginas (Paginação)</span>
+                      <span className="text-[9px] text-slate-400">Gera folhas adicionais se houverem mais produtos do que cabe em uma única página</span>
+                    </div>
+                  </label>
+
                   <label className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none">
                     <input 
                       type="checkbox"
@@ -1310,6 +1327,21 @@ export function LayoutDesigner() {
                     />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Observação</span>
                   </label>
+
+                  {activeSubTab === 'plate' && (
+                    <label className="flex items-center gap-2.5 p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200/50 cursor-pointer select-none col-span-2 md:col-span-4">
+                      <input 
+                        type="checkbox"
+                        checked={template.allowMultiPage ?? true}
+                        onChange={(e) => setTemplate(prev => ({ ...prev, allowMultiPage: e.target.checked }))}
+                        className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Permitir Múltiplas Páginas (Paginação Automática)</span>
+                        <span className="text-[9px] text-slate-400">Gera folhas adicionais se houverem mais itens do que cabe na primeira página da placa</span>
+                      </div>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
