@@ -35,8 +35,20 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.2.0',
+      version: 'v3.3.0',
       tag: 'Atual',
+      date: '25 de Junho, 2026',
+      title: 'Controle de Acesso Avançado (RBAC) & Gestão de Usuários',
+      highlights: [
+        'Novo módulo de Controle de Acesso Baseado em Funções (RBAC), introduzindo três perfis hierárquicos com restrições granulares: Administrador, Operador e Visualizador.',
+        'Desenvolvimento de uma aba interativa exclusiva de "Controle de Acesso" no menu lateral para gerenciamento de privilégios de usuários, criação de contas e exclusão segura.',
+        'Ações administrativas blindadas: Apenas Administradores podem gerenciar coletas (criar, renomear, excluir), gerenciar novos usuários e excluir contêineres.',
+        'Operação Segura: Usuários com perfil "Visualizador (Auditor)" agora possuem acesso restrito (somente leitura), impedidos de bipar itens, editar descrições ou esvaziar/finalizar contêineres.',
+        'Proteção contra exclusão acidental: Bloqueio nativo para exclusão do usuário Administrador Master e do próprio usuário ativo na sessão.'
+      ]
+    },
+    {
+      version: 'v3.2.0',
       date: '25 de Junho, 2026',
       title: 'Super Hub Inteligente NF-e & Painel de Inteligência Fiscal',
       highlights: [

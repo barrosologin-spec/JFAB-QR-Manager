@@ -1,6 +1,6 @@
 import {useState, useEffect, useMemo} from 'react';
 import {jsPDF} from 'jspdf';
-import {LayoutDashboard, Archive, AlertCircle, Database, Plus, Volume2, Upload, Download, Search, Copy, FileText, RefreshCw, Calendar, PanelLeftClose, PanelLeftOpen, Heart, Sun, Moon, Layout, FolderOpen, LogOut} from 'lucide-react';
+import {LayoutDashboard, Archive, AlertCircle, Database, Plus, Volume2, Upload, Download, Search, Copy, FileText, RefreshCw, Calendar, PanelLeftClose, PanelLeftOpen, Heart, Sun, Moon, Layout, FolderOpen, LogOut, Users, ShieldAlert} from 'lucide-react';
 import {Header} from './components/Header';
 import {QRPanel} from './components/QRPanel';
 import {NFeDashboard} from './components/NFeDashboard';
@@ -22,6 +22,7 @@ import {LayoutDesigner} from './components/LayoutDesigner';
 import {ColetasManager} from './components/ColetasManager';
 import {ChangelogAndAuditModalContent} from './components/ChangelogAndAuditModalContent';
 import {LoginScreen} from './components/LoginScreen';
+import {UsersManagement} from './components/UsersManagement';
 
 export default function App() {
   const {
@@ -57,9 +58,23 @@ export default function App() {
     login,
     logout,
     registerUser,
+    updateUserRole,
+    deleteUser,
+    createUserByAdmin,
     importFullStorage,
     addCustomAuditLog
   } = useSyncData();
+
+  const activeUserRole = useMemo(() => {
+    if (!currentUser) return 'operador';
+    const usersList = (storage._users as unknown as any[]) || [];
+    const dbUser = usersList.find((u: any) => u.email.toLowerCase() === currentUser.email.toLowerCase());
+    return dbUser?.role || (currentUser.email === 'barroso.login@gmail.com' ? 'admin' : 'operador');
+  }, [storage._users, currentUser]);
+
+  const isAdmin = activeUserRole === 'admin';
+  const isOperador = activeUserRole === 'operador';
+  const isAuditor = activeUserRole === 'visualizador';
 
   const formatTimeLeft = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
@@ -77,12 +92,12 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('qr_dark_mode') === 'true');
-  const [currentTab, setCurrentTab] = useState<'production' | 'calendar' | 'archived' | 'errors' | 'search' | 'duplicates' | 'nfe' | 'designer' | 'coletas'>('production');
+  const [currentTab, setCurrentTab] = useState<'production' | 'calendar' | 'archived' | 'errors' | 'search' | 'duplicates' | 'nfe' | 'designer' | 'coletas' | 'users'>('production');
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').replace('#', '');
-      const validTabs = ['production', 'calendar', 'archived', 'errors', 'search', 'duplicates', 'nfe', 'designer', 'coletas'];
+      const validTabs = ['production', 'calendar', 'archived', 'errors', 'search', 'duplicates', 'nfe', 'designer', 'coletas', 'users'];
       if (validTabs.includes(hash)) {
         setCurrentTab(hash as any);
       }
@@ -259,11 +274,19 @@ export default function App() {
   };
 
   const handleOpenAddCategory = () => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de acesso atual não possui permissão para gerenciar ou criar coletas.');
+      return;
+    }
     setTempInputValue('');
     setModalType('addCategory');
   };
 
   const handleConfirmAddCategory = async () => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de acesso atual não possui permissão para gerenciar ou criar coletas.');
+      return;
+    }
     if (tempInputValue.trim()) {
       const success = await createCategory(tempInputValue.trim());
       if (success) setSelectedCategory(tempInputValue.trim());
@@ -272,11 +295,19 @@ export default function App() {
   };
 
   const handleDeleteCategoryClick = (catName: string) => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Apenas Administradores podem excluir coletas.');
+      return;
+    }
     setCategoryToDelete(catName);
     setModalType('deleteCategory');
   };
 
   const handleConfirmDeleteCategory = async () => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Apenas Administradores podem excluir coletas.');
+      return;
+    }
     if (categoryToDelete) {
       await deleteCategory(categoryToDelete);
       if (selectedCategory === categoryToDelete) {
@@ -290,6 +321,10 @@ export default function App() {
   };
 
   const handleConfirmRenameCategory = async (oldName: string) => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Apenas Administradores podem renomear coletas.');
+      return;
+    }
     const trimmed = renamedValue.trim();
     if (!trimmed) return;
     if (trimmed === oldName) {
@@ -422,6 +457,10 @@ export default function App() {
   };
 
   const handleOpenAddContainer = async () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite criar contêineres.');
+      return;
+    }
     if (!selectedCategory || !selectedDate) {
       addNotification('warning', 'Aviso', 'Selecione uma coleta e data primeiro.');
       return;
@@ -454,6 +493,10 @@ export default function App() {
   };
 
   const handleConfirmAddContainer = async () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite criar contêineres.');
+      return;
+    }
     if (tempInputValue.trim()) {
       const success = await createContainer(selectedCategory, selectedDate, tempInputValue.trim());
       if (success) setSelectedContainer(tempInputValue.trim());
@@ -462,6 +505,10 @@ export default function App() {
   };
 
   const handleAddQR = (text: string, nfeData?: any) => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite bipar ou inserir itens.');
+      return;
+    }
     let isDuplicate = false;
     let originalSource: { category: string; date: string; container: string; ts: number } | null = null;
 
@@ -515,12 +562,20 @@ export default function App() {
   };
 
   const handleOpenEditItem = (idx: number, currentText: string) => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite editar itens.');
+      return;
+    }
     setActiveItemIdx(idx);
     setTempInputValue(currentText);
     setModalType('editItem');
   };
 
   const handleConfirmEditItem = () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite editar itens.');
+      return;
+    }
     if (activeItemIdx !== null && tempInputValue.trim()) {
       const newItems = [...items];
       newItems[activeItemIdx] = {...newItems[activeItemIdx], t: tempInputValue.trim(), ts: Date.now()};
@@ -530,11 +585,19 @@ export default function App() {
   };
 
   const handleOpenDeleteItem = (idx: number) => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite excluir itens.');
+      return;
+    }
     setActiveItemIdx(idx);
     setModalType('deleteItem');
   };
 
   const handleConfirmDeleteItem = () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite excluir itens.');
+      return;
+    }
     if (activeItemIdx !== null) {
       const newItems = [...items];
       newItems.splice(activeItemIdx, 1);
@@ -544,6 +607,10 @@ export default function App() {
   };
 
   const handleOpenDeleteContainer = () => {
+    if (!isAdmin) {
+      addNotification('error', 'Acesso Negado', 'Apenas Administradores podem excluir contêineres do sistema.');
+      return;
+    }
     setModalType('deleteContainer');
   };
 
@@ -559,6 +626,10 @@ export default function App() {
   };
 
   const handleConfirmClearContainer = async () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite esvaziar contêineres.');
+      return;
+    }
     if (selectedCategory && selectedDate && selectedContainer) {
       const success = await clearContainer(selectedCategory, selectedDate, selectedContainer);
       if (success) setModalType('none');
@@ -2181,6 +2252,10 @@ export default function App() {
   };
 
   const handleFinalizeContainer = async () => {
+    if (isAuditor) {
+      addNotification('error', 'Acesso Negado', 'Seu perfil de visualizador (somente leitura) não permite finalizar contêineres.');
+      return;
+    }
     if (selectedCategory && selectedDate && selectedContainer) {
       await finalizeContainer(selectedCategory, selectedDate, selectedContainer);
     }
@@ -2454,6 +2529,23 @@ export default function App() {
                 {getNotificationCountForTab('errors')}
               </span>
             )}
+          </button>
+
+          {/* Controle de Acesso */}
+          <button 
+            onClick={() => setCurrentTab('users')}
+            title={isSidebarCollapsed ? "Controle de Acesso" : undefined}
+            className={cn(
+              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
+              currentTab === 'users' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+            )}
+          >
+            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
+              <div className="relative">
+                <Users size={20} className="shrink-0" />
+              </div>
+              {!isSidebarCollapsed && <span>Controle de Acesso</span>}
+            </div>
           </button>
           
           <button 
@@ -2771,6 +2863,17 @@ export default function App() {
                 setSelectedCategory(category);
                 setCurrentTab('calendar');
               }}
+            />
+          )}
+
+          {currentTab === 'users' && (
+            <UsersManagement
+              storage={storage}
+              currentUser={currentUser}
+              updateUserRole={updateUserRole}
+              deleteUser={deleteUser}
+              createUserByAdmin={createUserByAdmin}
+              addNotification={addNotification}
             />
           )}
         </div>

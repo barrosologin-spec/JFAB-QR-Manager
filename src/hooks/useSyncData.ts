@@ -72,7 +72,8 @@ export function useSyncData() {
               remoteData._users = [{
                 email: 'barroso.login@gmail.com',
                 passwordHash: 'e10adc3949ba59abbe56e057f20f883e', // MD5 hash of Default Password "123456"
-                name: 'José Felipe A. Barroso'
+                name: 'José Felipe A. Barroso',
+                role: 'admin'
               }];
               // Write seed immediately to server
               await fetch('/api/sync', {
@@ -697,6 +698,86 @@ export function useSyncData() {
     return true;
   };
 
+  const updateUserRole = async (email: string, role: 'admin' | 'operador' | 'visualizador'): Promise<boolean> => {
+    const updatedStorage = { ...storage };
+    if (!updatedStorage._users) return false;
+    const usersList = [...updatedStorage._users as any[]];
+    const userIdx = usersList.findIndex((u: any) => u.email.toLowerCase() === email.trim().toLowerCase());
+    if (userIdx === -1) return false;
+    
+    const oldRole = usersList[userIdx].role || 'operador';
+    usersList[userIdx] = {
+      ...usersList[userIdx],
+      role
+    };
+    updatedStorage._users = usersList as any;
+    
+    appendAuditLog(updatedStorage, 'Privilégio Alterado', `Perfil de privilégio do usuário "${usersList[userIdx].name}" (${email}) alterado de "${oldRole}" para "${role}".`);
+    await registerLocalChange(updatedStorage);
+    addNotification('success', 'Privilégio Atualizado', `Usuário "${usersList[userIdx].name}" agora é "${role}".`);
+    return true;
+  };
+
+  const deleteUser = async (email: string): Promise<boolean> => {
+    const targetEmail = email.trim().toLowerCase();
+    if (targetEmail === 'barroso.login@gmail.com') {
+      addNotification('error', 'Operação Negada', 'Não é permitido excluir o usuário Administrador Master.');
+      return false;
+    }
+    if (currentUser && currentUser.email.toLowerCase() === targetEmail) {
+      addNotification('error', 'Operação Negada', 'Você não pode excluir seu próprio usuário ativo.');
+      return false;
+    }
+    
+    const updatedStorage = { ...storage };
+    if (!updatedStorage._users) return false;
+    const usersList = updatedStorage._users as any[];
+    const matched = usersList.find((u: any) => u.email.toLowerCase() === targetEmail);
+    if (!matched) return false;
+    
+    updatedStorage._users = usersList.filter((u: any) => u.email.toLowerCase() !== targetEmail) as any;
+    appendAuditLog(updatedStorage, 'Usuário Removido', `O usuário "${matched.name}" (${targetEmail}) foi excluído do sistema.`);
+    await registerLocalChange(updatedStorage);
+    addNotification('success', 'Usuário Removido', `Usuário "${matched.name}" excluído com sucesso.`);
+    return true;
+  };
+
+  const createUserByAdmin = async (
+    name: string,
+    email: string,
+    passwordInput: string,
+    role: 'admin' | 'operador' | 'visualizador'
+  ): Promise<{ success: boolean; message: string }> => {
+    const trimmedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedPass = passwordInput.trim();
+    
+    if (!trimmedName || !normalizedEmail || !trimmedPass) {
+      return { success: false, message: 'Todos os campos são obrigatórios.' };
+    }
+    
+    const updatedStorage = { ...storage };
+    if (!updatedStorage._users) updatedStorage._users = [] as any;
+    const usersList = updatedStorage._users as any[];
+    
+    if (usersList.some((u: any) => u.email.toLowerCase() === normalizedEmail)) {
+      return { success: false, message: 'Este e-mail de usuário já está cadastrado.' };
+    }
+    
+    const newUser = {
+      name: trimmedName,
+      email: normalizedEmail,
+      passwordHash: md5(trimmedPass),
+      role
+    };
+    
+    updatedStorage._users = [...usersList, newUser] as any;
+    appendAuditLog(updatedStorage, 'Usuário Criado', `Usuário administrativo criado: "${trimmedName}" (${normalizedEmail}) com privilégio "${role}".`);
+    await registerLocalChange(updatedStorage);
+    
+    return { success: true, message: 'Usuário criado com sucesso pelo Administrador.' };
+  };
+
   return {
     storage,
     loading,
@@ -724,6 +805,9 @@ export function useSyncData() {
     login,
     logout,
     registerUser,
+    updateUserRole,
+    deleteUser,
+    createUserByAdmin,
     
     // Exposed Sync engine values
     countdown,
