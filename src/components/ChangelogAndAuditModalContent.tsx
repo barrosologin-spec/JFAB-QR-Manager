@@ -35,8 +35,20 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.4.0',
+      version: 'v3.5.0',
       tag: 'Atual',
+      date: '25 de Junho, 2026',
+      title: 'Calendário de Cores Inteligente & Sincronização em Tempo Real',
+      highlights: [
+        'Calendário de Coleta Aprimorado: Design moderno com codificação de cores automática baseada nas categorias de lotes ativas (Cores de Produção).',
+        'Modal de Detalhes do Dia: Possibilidade de clicar em qualquer dia ou item do calendário para abrir uma visualização completa e interativa dos lotes de produção daquela data.',
+        'Filtro por Categorias e Busca Interna: Novo filtro reativo no modal para isolar categorias específicas e campo de busca rápida por nome de lote ou código de barra/QR Code.',
+        'Sincronização em Tempo Real (Real-time Sync): Introduzido suporte para sincronização ultra-rápida (Tempo Real) com atualização instantânea de dados a cada 3 segundos, ideal para operações com múltiplos dispositivos paralelos.',
+        'Temporizadores Reativos Live: O indicador de idade de sincronização ("há Xs") agora atualiza de forma suave e interativa a cada segundo sem necessidade de interação ou reloads manuais.'
+      ]
+    },
+    {
+      version: 'v3.4.0',
       date: '25 de Junho, 2026',
       title: 'Layout de DANFE Simplificado & Otimização de Espaço',
       highlights: [

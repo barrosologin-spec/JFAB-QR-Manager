@@ -23,12 +23,34 @@ export function useSyncData() {
   });
 
   // Sync state variables
-  const [countdown, setCountdown] = useState(60 * 60); // seconds left
-  const [syncInterval, setSyncInterval] = useState(60); // minutes
+  const [countdown, setCountdown] = useState(0); // seconds left (0 for real-time default)
+  const [syncInterval, setSyncInterval] = useState(0); // minutes (0 is Tempo Real by default)
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
   const [lastLocalUpdatedTime, setLastLocalUpdatedTime] = useState<number>(0);
-  const [presets, setPresets] = useState<number[]>([1, 5, 15, 30, 60, 120]);
+  const [presets, setPresets] = useState<number[]>([0, 1, 5, 15, 30, 60, 120]);
+
+  // DB Health & Size Tracking state
+  const [dbHealth, setDbHealth] = useState<{
+    sizeBytes: number;
+    sizeFormatted: string;
+    integrity: string;
+    message: string;
+    itemCount: number;
+    lastCheckTime: number;
+  } | null>(null);
+
+  const fetchDbHealth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/db-health');
+      if (res.ok) {
+        const data = await res.json();
+        setDbHealth(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch DB health:', err);
+    }
+  }, []);
 
   // Helper to add in-app notifications
   const addNotification = useCallback((type: Notification['type'], title: string, message: string) => {
@@ -91,6 +113,7 @@ export function useSyncData() {
             setLastSyncTime(remoteUpdated || Date.now());
           }
         }
+        await fetchDbHealth();
       } catch (err) {
         console.error('Failed to load server storage.json on startup:', err);
       } finally {
@@ -98,7 +121,7 @@ export function useSyncData() {
       }
     };
     loadServerData();
-  }, []);
+  }, [fetchDbHealth]);
 
   // 2. Initial Settings Load from Server
   useEffect(() => {
@@ -111,7 +134,8 @@ export function useSyncData() {
               setSyncInterval(data.interval);
            }
            if (Array.isArray(data.presets)) {
-              setPresets(data.presets);
+              const loadedPresets = data.presets.includes(0) ? data.presets : [0, ...data.presets];
+              setPresets(loadedPresets.sort((a, b) => a - b));
            }
         }
       } catch (error) {
@@ -134,6 +158,8 @@ export function useSyncData() {
         setLastLocalUpdatedTime(remoteUpdated);
         setLastSyncTime(Date.now());
         addNotification('success', 'Sincronizado', 'Dados sincronizados com o servidor.');
+        // Update database size and health information
+        await fetchDbHealth();
         return true;
       }
       return false;
@@ -144,10 +170,18 @@ export function useSyncData() {
     } finally {
       setIsSyncing(false);
     }
-  }, [addNotification]);
+  }, [addNotification, fetchDbHealth]);
 
   // Regular Automatic Countdown ticking every second
   useEffect(() => {
+    // If syncInterval is 0 (Tempo Real), poll every 3 seconds
+    if (syncInterval === 0) {
+      const timer = setInterval(() => {
+        syncNow();
+      }, 3000);
+      return () => clearInterval(timer);
+    }
+
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -164,6 +198,10 @@ export function useSyncData() {
 
   // Rescale countdown if interval or last sync changes
   useEffect(() => {
+    if (syncInterval === 0) {
+      setCountdown(0);
+      return;
+    }
     if (lastSyncTime > 0) {
       const nextSync = lastSyncTime + syncInterval * 60 * 1000;
       const timeLeft = nextSync - Date.now();
@@ -188,7 +226,11 @@ export function useSyncData() {
       if (!pushRes.ok) throw new Error("Failed to update Settings");
 
       setSyncInterval(minutes);
-      addNotification('success', 'Intervalo Alterado', `Sincronização automática redefinida para ${minutes} minutos.`);
+      if (minutes === 0) {
+        addNotification('success', 'Intervalo Alterado', 'Sincronização em Tempo Real ativada (atualização instantânea).');
+      } else {
+        addNotification('success', 'Intervalo Alterado', `Sincronização automática redefinida para ${minutes} minutos.`);
+      }
       return true;
     } catch (error) {
       console.error("Sync interval update failed:", error);
@@ -235,6 +277,7 @@ export function useSyncData() {
       });
       if (pushRes.ok) {
         setLastSyncTime(now);
+        await fetchDbHealth();
       } else {
         throw new Error("HTTP " + pushRes.status);
       }
@@ -817,6 +860,8 @@ export function useSyncData() {
     presets,
     syncNow,
     setCustomSyncInterval,
-    addPreset
+    addPreset,
+    dbHealth,
+    fetchDbHealth
   };
 }

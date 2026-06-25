@@ -62,7 +62,9 @@ export default function App() {
     deleteUser,
     createUserByAdmin,
     importFullStorage,
-    addCustomAuditLog
+    addCustomAuditLog,
+    dbHealth,
+    fetchDbHealth
   } = useSyncData();
 
   const activeUserRole = useMemo(() => {
@@ -122,6 +124,15 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Dynamic ticking state to update relative times in real time
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Modal States
   const [modalType, setModalType] = useState<'none' | 'addCategory' | 'addContainer' | 'deleteItem' | 'deleteContainer' | 'editItem' | 'clearNotifications' | 'settings' | 'manageCategories' | 'deleteCategory'>('none');
@@ -2468,8 +2479,18 @@ export default function App() {
                 </button>
               </div>
               <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                <span>Próximo: <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{formatTimeLeft(countdown)}</span></span>
-                {lastSyncTime > 0 && <span>há {Math.round((Date.now() - lastSyncTime) / 1000)}s</span>}
+                <span>Próximo: <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{syncInterval === 0 ? 'Tempo Real' : formatTimeLeft(countdown)}</span></span>
+                {lastSyncTime > 0 && <span>há {Math.round((nowTick - lastSyncTime) / 1000)}s</span>}
+              </div>
+              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-850 text-[9px] text-slate-400 dark:text-slate-500">
+                <span className="flex items-center gap-1">
+                  <Database size={10} className="text-blue-500" />
+                  <span>DB: <span className="font-mono text-slate-600 dark:text-slate-300 font-bold">{dbHealth?.sizeFormatted || '...'}</span></span>
+                </span>
+                <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                  <span>{dbHealth?.integrity || 'Íntegro'}</span>
+                </span>
               </div>
             </div>
           ) : (
@@ -2477,7 +2498,7 @@ export default function App() {
               <button 
                 onClick={handleManualSync}
                 disabled={isSyncing}
-                title={`Sincronizar agora\nPróximo em: ${formatTimeLeft(countdown)}`}
+                title={syncInterval === 0 ? "Sincronização em Tempo Real (Ativa)" : `Sincronizar agora\nPróximo em: ${formatTimeLeft(countdown)}`}
                 className={cn(
                   "p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-emerald-500 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center w-full",
                   isSyncing && "animate-spin"
@@ -3177,7 +3198,7 @@ export default function App() {
                 >
                   {presets.map(mins => (
                     <option key={mins} value={mins}>
-                      {mins === 1 ? 'A cada 1 minuto' : `A cada ${mins} minutos`}
+                      {mins === 0 ? 'Tempo Real (Sinc. Imediata)' : mins === 1 ? 'A cada 1 minuto' : `A cada ${mins} minutos`}
                     </option>
                   ))}
                 </select>
@@ -3236,11 +3257,66 @@ export default function App() {
                             : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                       >
-                        {mins}m
+                        {mins === 0 ? 'T. Real' : `${mins}m`}
                       </button>
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Saúde do Banco de Dados & Integridade */}
+          <div className="space-y-6 pt-6 border-t border-slate-150">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Database size={14} className="text-emerald-500" /> Saúde & Integridade do Banco de Dados
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex flex-col justify-between space-y-2">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Espaço Ocupado</span>
+                <span className="text-xl font-black text-slate-800 dark:text-slate-200 font-mono">
+                  {dbHealth?.sizeFormatted || 'Calculando...'}
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">
+                  Tamanho físico do arquivo de persistência (`storage.json`) armazenado no servidor.
+                </span>
+              </div>
+              
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex flex-col justify-between space-y-2">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Integridade dos Dados</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={cn(
+                    "w-2 h-2 rounded-full",
+                    dbHealth?.integrity === "Excelente" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  )} />
+                  <span className={cn(
+                    "text-xs font-black uppercase tracking-wider",
+                    dbHealth?.integrity === "Excelente" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                  )}>
+                    {dbHealth?.integrity || 'Verificando...'}
+                  </span>
+                </div>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">
+                  {dbHealth?.message || 'Validando integridade estrutural e consistência de dados.'}
+                </span>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/60 flex flex-col justify-between space-y-2">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Registros Totais</span>
+                <span className="text-xl font-black text-slate-800 dark:text-slate-200 font-mono font-medium">
+                  {dbHealth?.itemCount !== undefined ? `${dbHealth.itemCount} itens` : 'Calculando...'}
+                </span>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    await fetchDbHealth();
+                    addNotification('success', 'Diagnóstico Realizado', 'Estatísticas e integridade do banco de dados atualizadas.');
+                  }}
+                  className="text-left text-[9px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-bold"
+                >
+                  Executar verificação manual
+                </button>
               </div>
             </div>
           </div>

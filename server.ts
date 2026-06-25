@@ -30,15 +30,23 @@ app.post("/api/consultadanfe", async (req, res) => {
 async function readStorage() {
   try {
     const data = await fs.readFile(STORAGE_FILE, "utf-8");
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    // Auto-migrate interval 60 to 0 to enable real-time by default as requested
+    if (parsed && parsed.qrSyncSettings && parsed.qrSyncSettings.interval === 60) {
+      parsed.qrSyncSettings.interval = 0;
+    }
+    if (parsed && parsed.qrSyncSettings && parsed.qrSyncSettings.presets && !parsed.qrSyncSettings.presets.includes(0)) {
+      parsed.qrSyncSettings.presets = [0, ...parsed.qrSyncSettings.presets].sort((a, b) => a - b);
+    }
+    return parsed;
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       const defaultState = {
         qrStorageV2: {},
         qrStorageLastUpdated: 0,
         qrSyncSettings: {
-          interval: 60,
-          presets: [1, 5, 15, 30, 60, 120]
+          interval: 0,
+          presets: [0, 1, 5, 15, 30, 60, 120]
         }
       };
       await fs.writeFile(STORAGE_FILE, JSON.stringify(defaultState, null, 2), "utf-8");
@@ -115,6 +123,65 @@ app.post("/api/settings", async (req, res) => {
     res.json({ success: true, settings: currentData.qrSyncSettings });
   } catch (err) {
     res.status(500).json({ error: "Failed to update settings" });
+  }
+});
+
+// GET database health, size and integrity status
+app.get("/api/db-health", async (req, res) => {
+  try {
+    const stats = await fs.stat(STORAGE_FILE).catch(() => null);
+    const data = await readStorage();
+    
+    let itemCount = 0;
+    if (data && data.qrStorageV2) {
+      Object.entries(data.qrStorageV2).forEach(([cat, catObj]: [string, any]) => {
+        if (cat.startsWith('_')) return;
+        Object.values(catObj || {}).forEach((dateObj: any) => {
+          if (typeof dateObj !== 'object') return;
+          Object.values(dateObj || {}).forEach((cont: any) => {
+            if (cont && cont.items && Array.isArray(cont.items)) {
+              itemCount += cont.items.length;
+            }
+          });
+        });
+      });
+    }
+
+    const sizeBytes = stats ? stats.size : 0;
+    let sizeFormatted = "0 KB";
+    if (sizeBytes > 1024 * 1024) {
+      sizeFormatted = `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
+    } else if (sizeBytes > 1024) {
+      sizeFormatted = `${(sizeBytes / 1024).toFixed(2)} KB`;
+    } else {
+      sizeFormatted = `${sizeBytes} B`;
+    }
+
+    // Verify database structure for integrity
+    let integrity = "Excelente";
+    let message = "Banco de dados estruturado e totalmente íntegro.";
+    if (!data.qrStorageV2 || typeof data.qrStorageV2 !== 'object') {
+      integrity = "Inconsistente";
+      message = "Estrutura do banco de dados corrompida ou inválida.";
+    }
+
+    res.json({
+      sizeBytes,
+      sizeFormatted,
+      integrity,
+      message,
+      itemCount,
+      lastCheckTime: Date.now()
+    });
+  } catch (err: any) {
+    res.status(500).json({ 
+      sizeBytes: 0,
+      sizeFormatted: "Desconhecido",
+      integrity: "Falha de Verificação",
+      message: `Erro ao analisar banco de dados: ${err.message}`,
+      itemCount: 0,
+      lastCheckTime: Date.now()
+    });
   }
 });
 

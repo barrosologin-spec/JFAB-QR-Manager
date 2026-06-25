@@ -11,7 +11,7 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 ### 📋 Fluxo de Produção & Painéis Dinâmicos
 * **Painel de Produção Integrado:** Controle em tempo real do progresso operacional e distribuição de lotes com ordenação cronológica avançada.
 * **Estatísticas de Bipagem por Data:** Indicador automático em tempo real posicionado junto ao rótulo "Data de Produção" (no formato `Total - Duplicados = Bipados Ativos`), permitindo auditoria visual em tempo real no processo de triagem.
-* **Calendário Interativo:** Planejamento claro de coletas baseado em datas operacionais críticas.
+* **Calendário de Produção Inteligente (Novo):** Design moderno totalmente integrado com codificação de cores automática de acordo com as categorias ativas em cada dia. Permite clicar em qualquer dia para abrir um modal de detalhes dinâmico, contendo sanfona de lotes, filtros inteligentes de categoria e barra de busca instantânea de códigos ou lotes.
 * **Busca Global e Duplicatas:** Rastreador inteligente de itens duplicados para mitigar inconsistências, aliado a um mecanismo de busca instantâneo capaz de varrer todo o inventário.
 
 ### 🎨 Designer de Etiquetas Técnico & Flexível
@@ -25,6 +25,7 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 
 ### 🛡️ Auditoria, Segurança e Consolidação
 * **Sincronização robusta via SQLite/JSON (`storage.json`):** Estrutura de persistência estável baseada em arquivos no servidor, com controle de carimbos de data/hora (*timestamps*) e validação estrita contra perda de dados.
+* **Sincronização Ativa em Tempo Real (Novo):** Integração de preset dinâmico de 0 minutos ("Tempo Real") para pollar e sincronizar as leituras a cada 3 segundos, mantendo múltiplos terminais operando em harmonia perfeita, acompanhado por tickers dinâmicos no menu lateral que atualizam a idade de sincronização de segundo a segundo de forma totalmente dinâmica.
 * **Centro de Notificações e Registros de Auditoria:** Histórico detalhado de alterações críticas com descrições das operações do sistema.
 * **Mecanismo de Usuários e Autenticação:** Tela de login customizada com salvaguarda padrão para acesso inicial de operadores autorizados.
 
