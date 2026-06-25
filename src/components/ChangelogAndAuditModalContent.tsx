@@ -35,8 +35,20 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.3.0',
+      version: 'v3.4.0',
       tag: 'Atual',
+      date: '25 de Junho, 2026',
+      title: 'Layout de DANFE Simplificado & Otimização de Espaço',
+      highlights: [
+        'Resolução definitiva do erro de sobreposição: Corrigido o cálculo de início da tabela (p1StartY) que causava atropelamento de itens sob os títulos e cabeçalhos de produtos.',
+        'Novo DANFE Ultra Simplificado: Otimização completa do cabeçalho removendo blocos de tributos/impostos e grids de transportadoras não necessários em ambiente operacional de triagem.',
+        'Resumo Consolidado Compacto: Integração de dados de destinatário, emitente, volumes, peso e valor total em blocos limpos, elegantes e de baixa altura vertical.',
+        'Eficiência Térmica & Otimização de Folha: Ao reduzir o espaço ocupado pelo cabeçalho, foi possível expandir a capacidade de exibição da primeira página de ~10 para quase ~30 produtos.',
+        'Preservação de Atributos Críticos: Mantidos controles opcionais de exibição de Canhoto, autenticação oficial em rodapé, marcas d\'água de segurança de José Felipe A. Barroso e códigos de barra.'
+      ]
+    },
+    {
+      version: 'v3.3.0',
       date: '25 de Junho, 2026',
       title: 'Controle de Acesso Avançado (RBAC) & Gestão de Usuários',
       highlights: [

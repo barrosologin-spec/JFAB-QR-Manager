@@ -1538,7 +1538,11 @@ export default function App() {
         
         // Calculate pagination parameters
         const rowSpacingVal = dTemplate.rowSpacing;
-        const p1StartY = (dTemplate.showReceipt ? (m + 18 + 2) : m) + 48 + 2 + 22 + 2 + 18 + 2 + 26 + 2 + 4;
+        const receiptHeight = dTemplate.showReceipt ? 20 : 0;
+        const headerHeight = 34; // 32 box + 2 spacing
+        const destHeight = 20; // 4 title bar + 14 box + 2 spacing
+        const tableTitleAndHeaderHeight = 10; // 4 bar + 6 header
+        const p1StartY = m + receiptHeight + headerHeight + destHeight + tableTitleAndHeaderHeight;
         const p1MaxRowY = 297 - m - 2; // Maximum row Y on page 1 (without bottom section)
         const p1MaxRowYIfLast = 297 - m - bottomSectionHeight - 2; // Maximum row Y on page 1 if it is the only/last page
         
@@ -1608,247 +1612,104 @@ export default function App() {
           currentY += 18 + 2;
         }
 
-        // Header block
-        doc.rect(m, currentY, 210 - 2 * m, 48);
-        doc.line(88 + delta, currentY, 88 + delta, currentY + 48);
-        doc.line(124 + delta, currentY, 124 + delta, currentY + 48);
+        // --- NEW SIMPLIFIED HEADER BLOCK ---
+        // Unified Header box of height 32
+        doc.rect(m, currentY, 210 - 2 * m, 32);
+        // Vertical dividers:
+        // Divider 1: Emitente section ends at 84 + delta
+        doc.line(84 + delta, currentY, 84 + delta, currentY + 32);
+        // Divider 2: DANFE section ends at 118 + delta
+        doc.line(118 + delta, currentY, 118 + delta, currentY + 32);
 
-        // Emitente text
+        // 1. Emitente Details
         doc.setFont("helvetica", "bold");
         doc.setFontSize(dTemplate.fontSizeHeader);
         doc.text(String(dTemplate.customLogoText || emitName).toUpperCase().substring(0, 36), m + 3, currentY + 6);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
-        doc.text("LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA", m + 3, currentY + 10);
-        doc.text("AV. INDUSTRIAL DAS NAÇÕES, 1200 - DISTRITO INDUSTRIAL", m + 3, currentY + 14);
-        doc.text("SÃO PAULO - SP - CEP: 09120-000", m + 3, currentY + 18);
-        doc.text("TELEFONE: (11) 4002-8922 / sac@jfab.com.br", m + 3, currentY + 22);
+        doc.text("LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA", m + 3, currentY + 11);
         doc.setFont("helvetica", "bold");
-        doc.text(`CNPJ: ${emitCnpj}`, m + 3, currentY + 29);
-        doc.text("INSCRIÇÃO ESTADUAL: 148.992.120.110", m + 3, currentY + 33);
-        doc.text("INSCRIÇÃO MUNICIPAL: 981.002.33", m + 3, currentY + 37);
+        doc.text(`CNPJ: ${emitCnpj}`, m + 3, currentY + 17);
         doc.setFont("helvetica", "normal");
-        doc.text("UF: SP • PAÍS: BRASIL", m + 3, currentY + 41);
+        doc.setFontSize(6.5);
+        doc.text("INSCRIÇÃO ESTADUAL: 148.992.120.110", m + 3, currentY + 22);
+        doc.text("SÃO PAULO - SP • BRASIL", m + 3, currentY + 27);
 
-        // DANFE block
+        // 2. DANFE & Folha Block
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("DANFE", 106 + delta, currentY + 7, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text("DANFE", 101 + delta, currentY + 7, { align: 'center' });
         doc.setFontSize(6);
         doc.setFont("helvetica", "normal");
-        doc.text("Documento Auxiliar da\nNota Fiscal Eletrônica", 106 + delta, currentY + 12, { align: 'center' });
+        doc.text("Documento Auxiliar\nda Nota Fiscal Eletrônica", 101 + delta, currentY + 11, { align: 'center' });
         
-        doc.rect(103 + delta, currentY + 18, 6, 6);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("1", 106 + delta, currentY + 22.5, { align: 'center' });
-        doc.setFontSize(5.5);
-        doc.setFont("helvetica", "normal");
-        doc.text("0 - ENTRADA\n1 - SAÍDA", 111 + delta, currentY + 21);
+        doc.setFontSize(7.5);
+        doc.text(`Nº ${String(number).padStart(9, '0')}`, 101 + delta, currentY + 20, { align: 'center' });
+        doc.text(`SÉRIE ${series}`, 101 + delta, currentY + 24, { align: 'center' });
+        doc.setFontSize(6.5);
+        doc.text(`FOLHA 01/${String(totalPages).padStart(2, '0')}`, 101 + delta, currentY + 28, { align: 'center' });
 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text(`Nº ${String(number).padStart(9, '0')}`, 106 + delta, currentY + 30, { align: 'center' });
-        doc.text(`SÉRIE ${series}`, 106 + delta, currentY + 34, { align: 'center' });
-        doc.text(`FOLHA 01/${String(totalPages).padStart(2, '0')}`, 106 + delta, currentY + 38, { align: 'center' });
-
-        // Barcode
+        // 3. Barcode & Chave de Acesso
         try {
           const dataUrl = await generateBarcodeDataURL(key);
-          doc.addImage(dataUrl, 'PNG', 126 + delta, currentY + 3, 73, 14);
+          doc.addImage(dataUrl, 'PNG', 120 + delta, currentY + 3, 79, 11);
         } catch (err) {
           console.error("Error generating DANFE barcode", err);
         }
-        
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(6);
-        doc.text("CHAVE DE ACESSO", 126 + delta, currentY + 20);
+        doc.setFontSize(5.5);
+        doc.text("CHAVE DE ACESSO (CONSULTA DE AUTENTICIDADE NO PORTAL DA SEFAZ)", 120 + delta, currentY + 18);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.text(formattedKey, 126 + delta, currentY + 24);
+        doc.setFontSize(7);
+        doc.text(formattedKey, 120 + delta, currentY + 23);
+        doc.setFontSize(5.5);
+        doc.text("CHAVE DIGITALIZÁVEL INTEGRADA - PORTAL OPERACIONAL DE LEITURAS", 120 + delta, currentY + 28);
 
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "bold");
-        doc.text("CHAVE DIGITALIZÁVEL INTEGRADA - PORTAL OPERACIONAL DE LEITURAS", 126 + delta, currentY + 30);
-        doc.text("CONSULTA DE AUTENTICIDADE NO PORTAL DA SEFAZ OU SEFAZ.FAZENDA.GOV.BR", 126 + delta, currentY + 34);
+        currentY += 32 + 2;
 
-        currentY += 48 + 2;
-
-        // Destinatário
+        // --- NEW SIMPLIFIED DESTINATÁRIO & INVOICE SUMMARY ROW ---
+        // A unified compact box of height 14 containing: Recipient Name/CNPJ on the left, Invoice Summary on the right
         doc.setFillColor(245, 245, 245);
         doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
         doc.setTextColor(0);
-        doc.text("DESTINATÁRIO / REMETENTE", m + 2, currentY + 3);
-
-        doc.rect(m, currentY + 4, 210 - 2 * m, 18);
-        doc.line(145 + delta, currentY + 4, 145 + delta, currentY + 22);
-        doc.line(175 + delta, currentY + 4, 175 + delta, currentY + 22);
-        
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("NOME / RAZÃO SOCIAL", m + 2, currentY + 7);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(0);
-        doc.text(String(destName).toUpperCase().substring(0, 72), m + 2, currentY + 12);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("CNPJ / CPF", 147 + delta, currentY + 7);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text("98.765.432/0001-10", 147 + delta, currentY + 12);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("DATA DA EMISSÃO", 177 + delta, currentY + 7);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), 177 + delta, currentY + 12);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("ENDEREÇO", m + 2, currentY + 16);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text("AV. JOSÉ FELIPE BARROSO, 456 - INDUSTRIAL", m + 2, currentY + 20);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("BAIRRO / DISTRITO", 110 + delta, currentY + 16);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text("CENTRO", 110 + delta, currentY + 20);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("CEP", 132 + delta, currentY + 16);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text("14020-110", 132 + delta, currentY + 20);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("UF / MUNICÍPIO", 147 + delta, currentY + 16);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text("SP / SÃO PAULO", 147 + delta, currentY + 20);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(80, 80, 80);
-        doc.text("DATA DE SAÍDA", 177 + delta, currentY + 16);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), 177 + delta, currentY + 20);
-
-        currentY += 22 + 2;
-
-        // Cálculo Imposto
-        doc.setFillColor(245, 245, 245);
-        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
-        doc.setTextColor(0);
-        doc.text("CÁLCULO DO IMPOSTO", m + 2, currentY + 3);
+        doc.text("DADOS DA NOTA FISCAL (DESTINATÁRIO E RESUMO OPERACIONAL)", m + 2, currentY + 3);
 
         doc.rect(m, currentY + 4, 210 - 2 * m, 14);
-        doc.line(40 + delta, currentY + 4, 40 + delta, currentY + 18);
-        doc.line(72 + delta, currentY + 4, 72 + delta, currentY + 18);
-        doc.line(104 + delta, currentY + 4, 104 + delta, currentY + 18);
-        doc.line(136 + delta, currentY + 4, 136 + delta, currentY + 18);
-        doc.line(168 + delta, currentY + 4, 168 + delta, currentY + 18);
-        
+        // Vertical divider for summary column
+        doc.line(135 + delta, currentY + 4, 135 + delta, currentY + 18);
+
+        // Recipient details (Left)
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(5);
+        doc.setFontSize(5.5);
         doc.setTextColor(80, 80, 80);
-        doc.text("BASE DE CÁLCULO DO ICMS", m + 2, currentY + 7);
-        doc.text("VALOR DO ICMS", 42 + delta, currentY + 7);
-        doc.text("BASE CÁLC. ICMS SUBST.", 74 + delta, currentY + 7);
-        doc.text("VALOR DO ICMS SUBST.", 106 + delta, currentY + 7);
-        doc.text("VALOR TOTAL DOS PRODUTOS", 138 + delta, currentY + 7);
-        doc.text("VALOR TOTAL DA NOTA", 170 + delta, currentY + 7);
-
+        doc.text("DESTINATÁRIO / RAZÃO SOCIAL", m + 2, currentY + 8);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
-        doc.text("R$ 0,00", m + 2, currentY + 14);
-        doc.text("R$ 0,00", 42 + delta, currentY + 14);
-        doc.text("R$ 0,00", 74 + delta, currentY + 14);
-        doc.text("R$ 0,00", 106 + delta, currentY + 14);
-        doc.text(formattedTotalProd, 138 + delta, currentY + 14);
-        doc.text(formattedTotalProd, 170 + delta, currentY + 14);
+        doc.setFontSize(7.5);
+        doc.setTextColor(0);
+        doc.text(String(destName).toUpperCase().substring(0, 64), m + 2, currentY + 12);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`CNPJ: 98.765.432/0001-10  |  EMISSÃO: ${format(new Date(item.ts), 'dd/MM/yyyy')}  |  SAÍDA: ${format(new Date(item.ts), 'dd/MM/yyyy')}`, m + 2, currentY + 16);
 
-        currentY += 18 + 2;
-
-        // Transportadora
-        doc.setFillColor(245, 245, 245);
-        doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
+        // Resumo Operacional (Right)
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.5);
+        doc.setTextColor(80, 80, 80);
+        doc.text("RESUMO DA NOTA FISCAL", 137 + delta, currentY + 8);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
         doc.setTextColor(0);
-        doc.text("TRANSPORTADOR / VOLUMES TRANSPORTADOS", m + 2, currentY + 3);
+        doc.text(`VALOR TOTAL: ${formattedTotalProd}`, 137 + delta, currentY + 12);
+        doc.text(`VOLUMES: ${vols} VOLS  |  PESO: ${(parseFloat(vols) * 12.5).toFixed(2)} kg`, 137 + delta, currentY + 16);
 
-        doc.rect(m, currentY + 4, 210 - 2 * m, 14);
-        doc.line(80 + delta, currentY + 4, 80 + delta, currentY + 18);
-        doc.line(110 + delta, currentY + 4, 110 + delta, currentY + 18);
-        doc.line(130 + delta, currentY + 4, 130 + delta, currentY + 18);
-        doc.line(150 + delta, currentY + 4, 150 + delta, currentY + 18);
-        doc.line(170 + delta, currentY + 4, 170 + delta, currentY + 18);
+        currentY += 18; // 4 for header + 14 for box
+        currentY += 2; // spacing before products
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text("RAZÃO SOCIAL", m + 2, currentY + 7);
-        doc.text("FRETE POR CONTA", 82 + delta, currentY + 7);
-        doc.text("CÓDIGO ANTT", 112 + delta, currentY + 7);
-        doc.text("PLACA DO VEÍCULO", 132 + delta, currentY + 7);
-        doc.text("UF", 152 + delta, currentY + 7);
-        doc.text("CNPJ / CPF", 172 + delta, currentY + 7);
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
-        doc.text(String(transpName).toUpperCase().substring(0, 36), m + 2, currentY + 14);
-        doc.text("0-EMITENTE", 82 + delta, currentY + 14);
-        doc.text("N/A", 112 + delta, currentY + 14);
-        doc.text("ABC1D23", 132 + delta, currentY + 14);
-        doc.text("SP", 152 + delta, currentY + 14);
-        doc.text("40.222.111/0001-99", 172 + delta, currentY + 14);
-
-        // Volumes
-        doc.rect(m, currentY + 18, 210 - 2 * m, 8);
-        doc.line(40 + delta, currentY + 18, 40 + delta, currentY + 26);
-        doc.line(80 + delta, currentY + 18, 80 + delta, currentY + 26);
-        doc.line(120 + delta, currentY + 18, 120 + delta, currentY + 26);
-        doc.line(160 + delta, currentY + 18, 160 + delta, currentY + 26);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(4.5);
-        doc.setTextColor(80, 80, 80);
-        doc.text("QUANTIDADE", m + 2, currentY + 21);
-        doc.text("ESPÉCIE", 42 + delta, currentY + 21);
-        doc.text("MARCA", 82 + delta, currentY + 21);
-        doc.text("NÚMERO", 122 + delta, currentY + 21);
-        doc.text("PESO BRUTO", 162 + delta, currentY + 21);
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
-        doc.text(String(vols), m + 2, currentY + 25);
-        doc.text("VOLUMES", 42 + delta, currentY + 25);
-        doc.text("N/A", 82 + delta, currentY + 25);
-        doc.text("N/A", 122 + delta, currentY + 25);
-        doc.text((parseFloat(vols) * 12.5).toFixed(3) + " kg", 162 + delta, currentY + 25);
-
-        currentY += 26 + 2;
-
-        // Produtos
+        // --- PRODUCTS TABLE TITLE & HEADERS ---
         doc.setFillColor(245, 245, 245);
         doc.rect(m, currentY, 210 - 2 * m, 4, 'FD');
         doc.setFont("helvetica", "bold");
@@ -2308,365 +2169,388 @@ export default function App() {
           {!isSidebarCollapsed && <span className="font-bold text-xl tracking-tight text-slate-800 dark:text-slate-100">QR-Manager</span>}
         </div>
 
-        <JfabNav className="flex-1 px-3 space-y-1 mt-2">
-          {/* Painel Geral */}
-          <button 
-            onClick={() => setCurrentTab('production')}
-            title={isSidebarCollapsed ? "Painel Geral" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'production' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+        <JfabNav className="flex-1 px-3 space-y-3 mt-2 overflow-y-auto custom-scrollbar">
+          {/* GRUPO 1: OPERAÇÃO */}
+          <div>
+            {!isSidebarCollapsed && (
+              <div className="px-2.5 mb-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Operação
+              </div>
             )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <LayoutDashboard size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('production') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+            <div className="space-y-0.5">
+              {/* Painel Geral */}
+              <button 
+                onClick={() => setCurrentTab('production')}
+                title={isSidebarCollapsed ? "Painel Geral" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'production' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <LayoutDashboard size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('production') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('production')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Painel Geral</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('production') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-blue-500 shadow-sm">
                     {getNotificationCountForTab('production')}
                   </span>
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Painel Geral</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('production') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-blue-500 shadow-sm">
-                {getNotificationCountForTab('production')}
-              </span>
-            )}
-          </button>
+              </button>
 
-          {/* Produção */}
-          <button 
-            onClick={() => setCurrentTab('calendar')}
-            title={isSidebarCollapsed ? "Produção" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'calendar' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <Calendar size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('calendar') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-purple-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+              {/* Produção */}
+              <button 
+                onClick={() => setCurrentTab('calendar')}
+                title={isSidebarCollapsed ? "Produção" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'calendar' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <Calendar size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('calendar') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-purple-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('calendar')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Produção</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('calendar') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-purple-500 shadow-sm">
                     {getNotificationCountForTab('calendar')}
                   </span>
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Produção</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('calendar') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-purple-500 shadow-sm">
-                {getNotificationCountForTab('calendar')}
-              </span>
-            )}
-          </button>
+              </button>
 
-          {/* Coletas & Linagens */}
-          <button 
-            onClick={() => setCurrentTab('coletas')}
-            title={isSidebarCollapsed ? "Coletas & Linagens" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'coletas' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <FolderOpen size={20} className="shrink-0" />
-              </div>
-              {!isSidebarCollapsed && <span>Coletas & Linagens</span>}
-            </div>
-          </button>
-
-          {/* Estúdio de Layout */}
-          <button 
-            onClick={() => setCurrentTab('designer')}
-            title={isSidebarCollapsed ? "Estúdio de Layout" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'designer' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <Layout size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('designer') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
-                    {getNotificationCountForTab('designer')}
-                  </span>
+              {/* Coletas & Linagens */}
+              <button 
+                onClick={() => setCurrentTab('coletas')}
+                title={isSidebarCollapsed ? "Coletas & Linagens" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'coletas' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Estúdio de Layout</span>}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <FolderOpen size={18} className="shrink-0" />
+                  </div>
+                  {!isSidebarCollapsed && <span>Coletas & Linagens</span>}
+                </div>
+              </button>
             </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('designer') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-indigo-500 shadow-sm">
-                {getNotificationCountForTab('designer')}
-              </span>
-            )}
-          </button>
+          </div>
 
-          {/* Hub NF-e */}
-          <button 
-            onClick={() => setCurrentTab('nfe')}
-            title={isSidebarCollapsed ? "Gestão de NF-e" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'nfe' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+          {isSidebarCollapsed && <div className="my-1 border-t border-gray-100 dark:border-slate-800/60" />}
+
+          {/* GRUPO 2: DOCUMENTOS */}
+          <div>
+            {!isSidebarCollapsed && (
+              <div className="px-2.5 mb-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Documentos & Busca
+              </div>
             )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <FileText size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('nfe') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-emerald-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+            <div className="space-y-0.5">
+              {/* Hub NF-e */}
+              <button 
+                onClick={() => setCurrentTab('nfe')}
+                title={isSidebarCollapsed ? "Gestão de NF-e" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'nfe' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <FileText size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('nfe') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('nfe')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Hub NF-e</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('nfe') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-emerald-500 shadow-sm">
                     {getNotificationCountForTab('nfe')}
                   </span>
                 )}
+              </button>
+
+              {/* Estúdio de Layout */}
+              <button 
+                onClick={() => setCurrentTab('designer')}
+                title={isSidebarCollapsed ? "Estúdio de Layout" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'designer' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <Layout size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('designer') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('designer')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Estúdio de Layout</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('designer') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-indigo-500 shadow-sm">
+                    {getNotificationCountForTab('designer')}
+                  </span>
+                )}
+              </button>
+
+              {/* Busca Global */}
+              <button 
+                onClick={() => setCurrentTab('search')}
+                title={isSidebarCollapsed ? "Busca Global" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'search' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <Search size={18} className="shrink-0" />
+                  {!isSidebarCollapsed && <span>Busca Global</span>}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {isSidebarCollapsed && <div className="my-1 border-t border-gray-100 dark:border-slate-800/60" />}
+
+          {/* GRUPO 3: SEGURANÇA & CONTROLE */}
+          <div>
+            {!isSidebarCollapsed && (
+              <div className="px-2.5 mb-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Segurança & Auditoria
               </div>
-              {!isSidebarCollapsed && <span>Hub NF-e</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('nfe') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-emerald-500 shadow-sm">
-                {getNotificationCountForTab('nfe')}
-              </span>
             )}
-          </button>
-
-          {/* Busca Global */}
-          <button 
-            onClick={() => setCurrentTab('search')}
-            title={isSidebarCollapsed ? "Busca Global" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'search' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <LayoutDashboard size={20} className="hidden" /> {/* Keeps formatting space similar */}
-              <Search size={20} className="shrink-0" />
-              {!isSidebarCollapsed && <span>Busca Global</span>}
-            </div>
-          </button>
-
-          {/* Duplicados */}
-          <button 
-            onClick={() => setCurrentTab('duplicates')}
-            title={isSidebarCollapsed ? "Duplicados" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'duplicates' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <Copy size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('duplicates') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-amber-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+            <div className="space-y-0.5">
+              {/* Duplicados */}
+              <button 
+                onClick={() => setCurrentTab('duplicates')}
+                title={isSidebarCollapsed ? "Duplicados" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'duplicates' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <Copy size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('duplicates') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('duplicates')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Duplicados</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('duplicates') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-amber-500 shadow-sm">
                     {getNotificationCountForTab('duplicates')}
                   </span>
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Duplicados</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('duplicates') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-amber-500 shadow-sm">
-                {getNotificationCountForTab('duplicates')}
-              </span>
-            )}
-          </button>
+              </button>
 
-          {/* Arquivados */}
-          <button 
-            onClick={() => setCurrentTab('archived')}
-            title={isSidebarCollapsed ? "Arquivados" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'archived' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <Archive size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('archived') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-teal-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+              {/* Arquivados */}
+              <button 
+                onClick={() => setCurrentTab('archived')}
+                title={isSidebarCollapsed ? "Arquivados" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'archived' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <Archive size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('archived') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('archived')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Arquivados</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('archived') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-teal-500 shadow-sm">
                     {getNotificationCountForTab('archived')}
                   </span>
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Arquivados</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('archived') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-teal-500 shadow-sm">
-                {getNotificationCountForTab('archived')}
-              </span>
-            )}
-          </button>
+              </button>
 
-          {/* Log de Erros */}
-          <button 
-            onClick={() => setCurrentTab('errors')}
-            title={isSidebarCollapsed ? "Log de Erros" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'errors' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <AlertCircle size={20} className="shrink-0" />
-                {isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+              {/* Log de Erros */}
+              <button 
+                onClick={() => setCurrentTab('errors')}
+                title={isSidebarCollapsed ? "Log de Erros" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'errors' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <AlertCircle size={18} className="shrink-0" />
+                    {isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
+                        {getNotificationCountForTab('errors')}
+                      </span>
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && <span>Log de Erros</span>}
+                </div>
+                {!isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-red-500 shadow-sm">
                     {getNotificationCountForTab('errors')}
                   </span>
                 )}
-              </div>
-              {!isSidebarCollapsed && <span>Log de Erros</span>}
-            </div>
-            {!isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white bg-red-500 shadow-sm">
-                {getNotificationCountForTab('errors')}
-              </span>
-            )}
-          </button>
+              </button>
 
-          {/* Controle de Acesso */}
-          <button 
-            onClick={() => setCurrentTab('users')}
-            title={isSidebarCollapsed ? "Controle de Acesso" : undefined}
-            className={cn(
-              "w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-300 relative group",
-              currentTab === 'users' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            <div className={cn("flex items-center gap-3", isSidebarCollapsed && "w-full justify-center")}>
-              <div className="relative">
-                <Users size={20} className="shrink-0" />
-              </div>
-              {!isSidebarCollapsed && <span>Controle de Acesso</span>}
+              {/* Controle de Acesso */}
+              <button 
+                onClick={() => setCurrentTab('users')}
+                title={isSidebarCollapsed ? "Controle de Acesso" : undefined}
+                className={cn(
+                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
+                  currentTab === 'users' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+                )}
+              >
+                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
+                  <div className="relative">
+                    <Users size={18} className="shrink-0" />
+                  </div>
+                  {!isSidebarCollapsed && <span>Controle de Acesso</span>}
+                </div>
+              </button>
             </div>
-          </button>
-          
-          <button 
-            type="button"
-            onClick={() => setIsPixOpen(true)}
-            title={isSidebarCollapsed ? "Apoiadores do Projeto por PIX" : undefined}
-            className={cn(
-              "w-full flex items-center gap-3 p-3 rounded-xl font-semibold transition-all duration-300 text-rose-500 hover:bg-rose-50/70 dark:hover:bg-rose-950/25 hover:text-rose-600",
-              isSidebarCollapsed && "justify-center"
-            )}
-          >
-            <Heart size={20} className="shrink-0 text-rose-500 fill-rose-100 dark:fill-rose-950" />
-            {!isSidebarCollapsed && "Apoiar com PIX ❤️"}
-          </button>
+          </div>
         </JfabNav>
 
         <div className="p-3 mt-auto border-t border-gray-100 dark:border-slate-800/85 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isSidebarCollapsed ? (isDarkMode ? "Mudar para Modo Claro" : "Mudar para Modo Escuro") : undefined}
-            className={cn(
-              "w-full flex items-center gap-3 p-3 rounded-xl font-semibold transition-all duration-300 text-left cursor-pointer",
-              isSidebarCollapsed ? "justify-center" : "px-3.5",
-              "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-            )}
-          >
-            {isDarkMode ? (
-              <>
-                <Sun size={18} className="shrink-0 text-amber-500" />
-                {!isSidebarCollapsed && <span className="text-xs">Modo Claro</span>}
-              </>
-            ) : (
-              <>
-                <Moon size={18} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                {!isSidebarCollapsed && <span className="text-xs">Modo Escuro</span>}
-              </>
-            )}
-          </button>
-
-          {isSidebarCollapsed ? (
-             <button 
-                onClick={() => setIsSidebarCollapsed(false)}
-                className="w-full p-3 flex justify-center items-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-xl transition cursor-pointer"
-                title="Expandir menu"
-             >
-               <PanelLeftOpen size={20} />
-             </button>
-          ) : (
-            <button 
-                onClick={() => setIsSidebarCollapsed(true)}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/55 rounded-xl transition cursor-pointer"
-                title="Recolher menu"
-            >
-                <PanelLeftClose size={18} className="text-slate-400" />
-                Recolher Menu
-            </button>
-          )}
-
+          {/* Sincronização Box */}
           {!isSidebarCollapsed ? (
-            <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-sm mt-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"></span>
-                  Sincronização
-                </span>
+            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-gray-100 dark:border-slate-800/60 text-xs shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  <span className="font-semibold text-[11px] text-slate-700 dark:text-slate-300 truncate">Intranet Sync</span>
+                </div>
                 <button 
                   onClick={handleManualSync}
                   disabled={isSyncing}
                   title="Sincronizar agora manualmente"
                   className={cn(
-                    "p-1.5 bg-slate-800 hover:bg-slate-705 rounded-lg text-gray-300 hover:text-white transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center",
+                    "p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition text-slate-500 dark:text-slate-400 cursor-pointer disabled:opacity-50",
                     isSyncing && "animate-spin"
                   )}
                 >
                   <RefreshCw size={12} />
                 </button>
               </div>
-              
-              <p className="text-xs font-semibold flex items-center gap-1.5 text-blue-100">
-                <Database size={12} className="text-blue-400 shrink-0" />
-                Intranet Server
-              </p>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>Próximo ciclo:</span>
-                  <span className="font-mono font-bold text-emerald-400">{formatTimeLeft(countdown)}</span>
-                </div>
-                
-                <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
-                  <div 
-                    className={cn(
-                      "h-full rounded-full transition-all duration-1000",
-                      countdown < 60 ? "bg-red-400" : countdown < 300 ? "bg-amber-400" : "bg-blue-400"
-                    )}
-                    style={{ width: `${Math.max(0, Math.min(100, (countdown / (syncInterval * 60)) * 100))}%` }}
-                  ></div>
-                </div>
-
-                {lastSyncTime > 0 && (
-                  <div className="text-[8px] text-slate-500 font-medium text-right mt-1">
-                    Sincronizado há {Math.round((Date.now() - lastSyncTime) / 1000)}s
-                  </div>
-                )}
+              <div className="flex items-center justify-between mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                <span>Próximo: <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{formatTimeLeft(countdown)}</span></span>
+                {lastSyncTime > 0 && <span>há {Math.round((Date.now() - lastSyncTime) / 1000)}s</span>}
               </div>
             </div>
           ) : (
-             <div className="bg-slate-900 rounded-xl p-2 flex flex-col items-center justify-center gap-2">
-                 <button 
-                  onClick={handleManualSync}
-                  disabled={isSyncing}
-                  title={`Sincronizar agora\nPróximo em: ${formatTimeLeft(countdown)}`}
-                  className={cn(
-                    "p-2 bg-slate-800 hover:bg-slate-705 rounded-lg text-emerald-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center w-full",
-                    isSyncing && "animate-spin"
-                  )}
-                >
-                  <RefreshCw size={14} />
-                </button>
-             </div>
+            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2 flex flex-col items-center justify-center border border-gray-100 dark:border-slate-800/60 shadow-sm">
+              <button 
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                title={`Sincronizar agora\nPróximo em: ${formatTimeLeft(countdown)}`}
+                className={cn(
+                  "p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-emerald-500 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center w-full",
+                  isSyncing && "animate-spin"
+                )}
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Unified Horizontal Utility Footer */}
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center justify-between gap-1 mt-1 pt-1.5 border-t border-gray-50 dark:border-slate-800/45">
+              {/* Tema */}
+              <button
+                type="button"
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
+                className="flex-1 flex justify-center items-center py-2 rounded-lg text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60 transition cursor-pointer"
+              >
+                {isDarkMode ? <Sun size={16} className="text-amber-500" /> : <Moon size={16} className="text-slate-400" />}
+              </button>
+
+              {/* Apoio PIX */}
+              <button
+                type="button"
+                onClick={() => setIsPixOpen(true)}
+                title="Apoiar com PIX ❤️"
+                className="flex-1 flex justify-center items-center py-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition cursor-pointer"
+              >
+                <Heart size={16} className="text-rose-500 fill-rose-100 dark:fill-rose-950/40" />
+              </button>
+
+              {/* Encolher Menu */}
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                title="Recolher Menu"
+                className="flex-1 flex justify-center items-center py-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5 mt-1 pt-1.5 border-t border-gray-50 dark:border-slate-800/45">
+              {/* Tema */}
+              <button
+                type="button"
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
+                className="w-8 h-8 flex justify-center items-center rounded-lg text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60 transition cursor-pointer"
+              >
+                {isDarkMode ? <Sun size={16} className="text-amber-500" /> : <Moon size={16} className="text-slate-400" />}
+              </button>
+
+              {/* Apoio PIX */}
+              <button
+                type="button"
+                onClick={() => setIsPixOpen(true)}
+                title="Apoiar com PIX ❤️"
+                className="w-8 h-8 flex justify-center items-center rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition cursor-pointer"
+              >
+                <Heart size={16} className="text-rose-500 fill-rose-100 dark:fill-rose-950/40" />
+              </button>
+
+              {/* Expandir Menu */}
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Expandir Menu"
+                className="w-8 h-8 flex justify-center items-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition cursor-pointer"
+              >
+                <PanelLeftOpen size={16} />
+              </button>
+            </div>
           )}
         </div>
 
