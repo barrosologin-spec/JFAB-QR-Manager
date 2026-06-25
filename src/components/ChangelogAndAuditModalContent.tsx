@@ -35,8 +35,19 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.1.0',
+      version: 'v3.2.0',
       tag: 'Atual',
+      date: '25 de Junho, 2026',
+      title: 'Super Hub Inteligente NF-e & Painel de Inteligência Fiscal',
+      highlights: [
+        'Aprimoramento completo do Hub NF-e com novos filtros avançados de busca por chave, fornecedor (emitente), cliente (destinatário), contêiner, faixa de valor (min/max) e período (filtros por data de início e fim).',
+        'Criação do Painel Analítico Interativo integrado usando Recharts: Evolução de faturamento diário (AreaChart), representação de fornecedores por curva ABC (BarChart) e análise de participação por contêiner (PieChart).',
+        'Novo módulo de Inteligência Tributária: Painel com faturamento filtrado, estimativa de impostos recolhidos (ICMS de 18% e IPI de 5%), média financeira por DANFE e consolidação de volumes físicos.',
+        'Novas ferramentas de exportação de dados: Baixar Relatório Fiscal Consolidado em formato Excel/CSV estruturado com BOM UTF-8 e separador compatível, e disparar download de DANFEs em lote (PDF único multipáginas) para as notas filtradas.'
+      ]
+    },
+    {
+      version: 'v3.1.0',
       date: '24 de Junho, 2026',
       title: 'Paginação Dinâmica & Saneamento de Metadados de Marcas Externas',
       highlights: [

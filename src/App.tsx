@@ -2651,7 +2651,10 @@ export default function App() {
           )}
 
           {currentTab === 'nfe' && (
-            <NFeDashboard storage={storage} />
+            <NFeDashboard 
+              storage={storage} 
+              onDownloadDanfePDF={handleDownloadDanfePDF}
+            />
           )}
 
           {currentTab === 'search' && (
