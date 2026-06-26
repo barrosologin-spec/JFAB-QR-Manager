@@ -113,9 +113,9 @@ export function QRPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [isNfeMode, setIsNfeMode] = useState(false);
   const [isConsulting, setIsConsulting] = useState(false);
   const scannerInputRef = React.useRef<HTMLInputElement>(null);
+  const lastScannedWasNfeRef = React.useRef<boolean | null>(null);
 
   // Stopwatch States
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -198,7 +198,7 @@ export function QRPanel({
     if (!isFinalized && selectedContainer && !isConsulting) {
       setTimeout(() => scannerInputRef.current?.focus(), 100);
     }
-  }, [isFinalized, selectedContainer, isConsulting, isNfeMode]);
+  }, [isFinalized, selectedContainer, isConsulting]);
 
   // Global click handler to maintain focus on the scanner input unless interacting with another input
   React.useEffect(() => {
@@ -276,7 +276,19 @@ export function QRPanel({
         }
       }
 
-      if (isNfeMode && finalValue.length === 44) {
+      const isNfe = finalValue.length === 44 && /^\d+$/.test(finalValue);
+
+      if (isNfe) {
+        if (lastScannedWasNfeRef.current !== true) {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance('Nota fiscal detectada!');
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.speak(utterance);
+          }
+        }
+        lastScannedWasNfeRef.current = true;
+
         setIsConsulting(true);
         setFormattingMsg(`Consultando NF-e: ${finalValue}...`);
         try {
@@ -311,10 +323,10 @@ export function QRPanel({
               const transpNode = xmlDoc.getElementsByTagName('transp')[0];
               const transportaNode = transpNode ? transpNode.getElementsByTagName('transporta')[0] : null;
               const transpVolNode = transpNode ? transpNode.getElementsByTagName('vol')[0] : null;
-
+ 
               const enderEmitNode = xmlDoc.getElementsByTagName('enderEmit')[0] || (emitNode ? emitNode.getElementsByTagName('enderEmit')[0] : null);
               const enderDestNode = xmlDoc.getElementsByTagName('enderDest')[0] || (destNode ? destNode.getElementsByTagName('enderDest')[0] : null);
-
+ 
               parsedNfe.emitente = {
                 nome: getTagText(emitNode, 'xNome'),
                 cnpj: getTagText(emitNode, 'CNPJ') || getTagText(emitNode, 'CPF'),
@@ -327,7 +339,7 @@ export function QRPanel({
                 cep: getTagText(enderEmitNode, 'CEP'),
                 fone: getTagText(enderEmitNode, 'fone')
               };
-
+ 
               parsedNfe.destinatario = {
                 nome: getTagText(destNode, 'xNome'),
                 cnpj: getTagText(destNode, 'CNPJ') || getTagText(destNode, 'CPF'),
@@ -339,10 +351,10 @@ export function QRPanel({
                 uf: getTagText(enderDestNode, 'UF'),
                 cep: getTagText(enderDestNode, 'CEP')
               };
-
+ 
               parsedNfe.transportadora = { nome: getTagText(transportaNode, 'xNome') };
               parsedNfe.volumes = getTagText(transpVolNode, 'qVol');
-
+ 
               const detNodes = xmlDoc.getElementsByTagName('det');
               const produtos = [];
               for (let i = 0; i < detNodes.length; i++) {
@@ -357,7 +369,7 @@ export function QRPanel({
               console.error("Erro ao decodificar/parsear XML da NF-e", xmlErr);
             }
           }
-
+ 
           onAddQR(finalValue, parsedNfe);
           setFormattingMsg(`NF-e lida com sucesso!`);
         } catch (err) {
@@ -369,6 +381,7 @@ export function QRPanel({
           setInputValue('');
         }
       } else {
+        lastScannedWasNfeRef.current = false;
         onAddQR(finalValue);
         setInputValue('');
       }
@@ -971,16 +984,13 @@ export function QRPanel({
                     </div>
 
                     {!isFinalized && (
-                      <div className="flex flex-col items-center justify-center gap-3 mt-3">
-                        <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full transition border border-slate-200" onClick={(e) => { e.preventDefault(); setIsNfeMode(!isNfeMode); }}>
-                          <div className={cn("w-8 h-4 rounded-full relative transition", isNfeMode ? "bg-amber-500" : "bg-slate-300")}>
-                            <div className={cn("absolute top-0.5 w-3 h-3 rounded-full bg-white transition shadow-sm", isNfeMode ? "left-4" : "left-0.5")}></div>
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Modo NF-e (44 dígitos)</span>
-                        </label>
+                      <div className="flex flex-col items-center justify-center gap-2 mt-3">
+                        <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/30 px-3 py-1 rounded-full text-emerald-700 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">Detecção Automática de NF-e Ativa</span>
+                        </div>
                         <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
-                          O leitor converte dados de coletores brutas de forma automatizada.
+                          Chaves de 44 dígitos são identificadas e chanceladas por voz de forma automatizada.
                         </div>
                       </div>
                     )}
@@ -1136,7 +1146,7 @@ export function QRPanel({
                       <thead>
                         <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
                           <th className="py-3 px-4 w-12 text-center text-slate-400">#</th>
-                          {(isNfeMode || items.some(i => i.nfeData)) ? (
+                          {items.some(i => i.nfeData) ? (
                             <>
                               <th className="py-3 px-4 min-w-[200px]">Chave NF-e / Emissão</th>
                               <th className="py-3 px-4">Emitente</th>
@@ -1161,7 +1171,7 @@ export function QRPanel({
                           const formattedTime = formatTimestamp(item.ts);
                           const seqNum = (currentPage - 1) * itemsPerPage + index + 1;
                           const seqFormatted = String(seqNum).padStart(2, '0');
-                          const hasNfe = (isNfeMode || items.some(i => i.nfeData));
+                          const hasNfe = items.some(i => i.nfeData);
                           const nfe = item.nfeData;
 
                           return (

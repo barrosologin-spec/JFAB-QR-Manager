@@ -666,6 +666,7 @@ export default function App() {
     const doc = new jsPDF();
     const pageWidth = 210;
     const pageHeight = 297;
+    const operatorName = currentUser?.name ? currentUser.name.toUpperCase() : "JOSÉ FELIPE A. BARROSO";
 
     try {
       const dataUrl = await generateBarcodeDataURL(selectedContainer);
@@ -675,13 +676,13 @@ export default function App() {
       const mainBorderWidth = plateTemplate ? plateTemplate.borderWidth / 3.5 : 0.4;
       const mainBorderRadius = plateTemplate ? plateTemplate.borderRadius / 3.5 : 4;
       
-      // 1. WATERMARKS (JOSÉ FELIPE A. BARROSO) - Super Light Gray for Ink Saving
+      // 1. WATERMARKS - Super Light Gray for Ink Saving
       doc.setTextColor(243, 244, 246);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
-      doc.text("JOSÉ FELIPE A. BARROSO", 105, 90, { align: 'center', angle: 25 });
-      doc.text("JOSÉ FELIPE A. BARROSO", 105, 160, { align: 'center', angle: 25 });
-      doc.text("JOSÉ FELIPE A. BARROSO", 105, 230, { align: 'center', angle: 25 });
+      doc.text(operatorName, 105, 90, { align: 'center', angle: 25 });
+      doc.text(operatorName, 105, 160, { align: 'center', angle: 25 });
+      doc.text(operatorName, 105, 230, { align: 'center', angle: 25 });
 
       // 2. MAIN BORDER - Thin Slate Outline Instead of solid dark block
       doc.setDrawColor(primaryColor);
@@ -1001,8 +1002,8 @@ export default function App() {
                 doc.setTextColor(243, 244, 246);
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(24);
-                doc.text("JOSÉ FELIPE A. BARROSO", 105, 90, { align: 'center', angle: 25 });
-                doc.text("JOSÉ FELIPE A. BARROSO", 105, 160, { align: 'center', angle: 25 });
+                doc.text(operatorName, 105, 90, { align: 'center', angle: 25 });
+                doc.text(operatorName, 105, 160, { align: 'center', angle: 25 });
                 
                 // Draw Border
                 doc.setDrawColor(primaryColor);
@@ -1018,7 +1019,7 @@ export default function App() {
                 doc.setTextColor(100, 116, 139);
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(8);
-                doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: JOSÉ FELIPE A. BARROSO`, 16, 25);
+                doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: ${operatorName}`, 16, 25);
                 
                 // Page indicator top right
                 doc.setFont("helvetica", "bold");
@@ -1076,7 +1077,7 @@ export default function App() {
                 
                 doc.setFont("helvetica", "bold");
                 doc.setTextColor(100, 116, 139);
-                doc.text("CHANCELADO POR: JOSÉ FELIPE A. BARROSO • GESTÃO DE SISTEMAS INTELIGENTES", 105, 278, { align: 'center' });
+                doc.text(`CHANCELADO POR: ${operatorName} • GESTÃO DE SISTEMAS INTELIGENTES`, 105, 278, { align: 'center' });
               }
             } else {
               const diff = allNfeProducts.length - listLimit;
@@ -1129,8 +1130,8 @@ export default function App() {
               doc.setTextColor(243, 244, 246);
               doc.setFont("helvetica", "bold");
               doc.setFontSize(24);
-              doc.text("JOSÉ FELIPE A. BARROSO", 105, 90, { align: 'center', angle: 25 });
-              doc.text("JOSÉ FELIPE A. BARROSO", 105, 160, { align: 'center', angle: 25 });
+              doc.text(operatorName, 105, 90, { align: 'center', angle: 25 });
+              doc.text(operatorName, 105, 160, { align: 'center', angle: 25 });
               
               // Draw Border
               doc.setDrawColor(primaryColor);
@@ -1146,7 +1147,7 @@ export default function App() {
               doc.setTextColor(100, 116, 139);
               doc.setFont("helvetica", "normal");
               doc.setFontSize(8);
-              doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: JOSÉ FELIPE A. BARROSO`, 16, 25);
+              doc.text(`CONTÊINER: ${selectedContainer.toUpperCase()} | DATA: ${selectedDate} | OPERADOR: ${operatorName}`, 16, 25);
               
               // Page indicator top right
               doc.setFont("helvetica", "bold");
@@ -1205,7 +1206,7 @@ export default function App() {
               
               doc.setFont("helvetica", "bold");
               doc.setTextColor(100, 116, 139);
-              doc.text("CHANCELADO POR: JOSÉ FELIPE A. BARROSO • GESTÃO DE SISTEMAS INTELIGENTES", 105, 278, { align: 'center' });
+              doc.text(`CHANCELADO POR: ${operatorName} • GESTÃO DE SISTEMAS INTELIGENTES`, 105, 278, { align: 'center' });
             }
           } else {
             const diff = items.length - listLimit;
@@ -1234,7 +1235,7 @@ export default function App() {
       
       doc.setFont("helvetica", "bold");
       doc.setTextColor(100, 116, 139);
-      doc.text("CHANCELADO POR: JOSÉ FELIPE A. BARROSO • GESTÃO DE SISTEMAS INTELIGENTES", 105, 278, { align: 'center' });
+      doc.text(`CHANCELADO POR: ${operatorName} • GESTÃO DE SISTEMAS INTELIGENTES`, 105, 278, { align: 'center' });
 
       // Build & Print
       const blob = doc.output('blob');
