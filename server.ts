@@ -52,13 +52,42 @@ async function readStorage() {
       await fs.writeFile(STORAGE_FILE, JSON.stringify(defaultState, null, 2), "utf-8");
       return defaultState;
     }
+    
+    // Auto-recovery for corrupted JSON files (SyntaxError)
+    if (error instanceof SyntaxError || error.name === 'SyntaxError') {
+      console.error("Corrupted STORAGE_FILE found. Backing up and resetting.", error);
+      try {
+        const backupPath = `${STORAGE_FILE}.corrupted_${Date.now()}`;
+        // Read raw data and write to backup to preserve whatever was there
+        const rawContent = await fs.readFile(STORAGE_FILE, "utf-8").catch(() => "");
+        await fs.writeFile(backupPath, rawContent, "utf-8");
+        console.log(`Backup created at: ${backupPath}`);
+      } catch (backupErr) {
+        console.error("Failed to create backup of corrupted file", backupErr);
+      }
+      
+      const defaultState = {
+        qrStorageV2: {},
+        qrStorageLastUpdated: 0,
+        qrSyncSettings: {
+          interval: 0,
+          presets: [0, 1, 5, 15, 30, 60, 120]
+        }
+      };
+      // Overwrite corrupted file with clean state
+      await fs.writeFile(STORAGE_FILE, JSON.stringify(defaultState, null, 2), "utf-8");
+      return defaultState;
+    }
+    
     throw error;
   }
 }
 
-// Helper to write storage file
+// Helper to write storage file atomically to prevent corruption
 async function writeStorage(data: any) {
-  await fs.writeFile(STORAGE_FILE, JSON.stringify(data, null, 2), "utf-8");
+  const tmpFile = `${STORAGE_FILE}.tmp`;
+  await fs.writeFile(tmpFile, JSON.stringify(data, null, 2), "utf-8");
+  await fs.rename(tmpFile, STORAGE_FILE);
 }
 
 // GET entire state

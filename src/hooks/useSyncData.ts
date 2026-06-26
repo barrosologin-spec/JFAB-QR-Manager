@@ -343,7 +343,7 @@ export function useSyncData() {
     masterPasswordInput: string
   ): Promise<{ success: boolean; message: string }> => {
     const trimmedMaster = masterPasswordInput.trim();
-    if (md5(trimmedMaster) !== md5("beke#212!")) {
+    if (md5(trimmedMaster) !== "485e59ace2c554f39af99abaa9fd03fa") {
       return { success: false, message: 'Senha Mestra de segurança inválida.' };
     }
     
@@ -830,7 +830,7 @@ export function useSyncData() {
     masterPasswordInput: string
   ): Promise<{ success: boolean; message: string }> => {
     const trimmedMaster = masterPasswordInput.trim();
-    if (md5(trimmedMaster) !== md5("beke#212!")) {
+    if (md5(trimmedMaster) !== "485e59ace2c554f39af99abaa9fd03fa") {
       return { success: false, message: 'Senha Mestra de segurança inválida.' };
     }
 

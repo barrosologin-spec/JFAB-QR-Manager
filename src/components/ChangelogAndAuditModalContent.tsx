@@ -131,7 +131,7 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
       highlights: [
         'Controle de login seguro com e-mail corporativo autenticado e persistência de dados de sessão.',
         'Algoritmo oficial MD5 implementado de forma offline para hash e proteção irreversível de senhas no cache e upload de nuvem.',
-        'Instanciação de novas contas condicionada à validação rigorosa com Senha Mestra Administrativa (beke#212!).',
+        'Instanciação de novas contas condicionada à validação rigorosa com Senha Mestra Administrativa (protegida com criptografia de hash MD5).',
         'Sincronização imediata de novos usuários cadastrados entre dispositivos corporativos e trilha de auditoria vinculando o autor de cada registro.'
       ]
     },
