@@ -312,8 +312,34 @@ export function QRPanel({
               const transportaNode = transpNode ? transpNode.getElementsByTagName('transporta')[0] : null;
               const transpVolNode = transpNode ? transpNode.getElementsByTagName('vol')[0] : null;
 
-              parsedNfe.emitente = { nome: getTagText(emitNode, 'xNome') };
-              parsedNfe.destinatario = { nome: getTagText(destNode, 'xNome') };
+              const enderEmitNode = xmlDoc.getElementsByTagName('enderEmit')[0] || (emitNode ? emitNode.getElementsByTagName('enderEmit')[0] : null);
+              const enderDestNode = xmlDoc.getElementsByTagName('enderDest')[0] || (destNode ? destNode.getElementsByTagName('enderDest')[0] : null);
+
+              parsedNfe.emitente = {
+                nome: getTagText(emitNode, 'xNome'),
+                cnpj: getTagText(emitNode, 'CNPJ') || getTagText(emitNode, 'CPF'),
+                ie: getTagText(emitNode, 'IE'),
+                logradouro: getTagText(enderEmitNode, 'xLgr'),
+                numero: getTagText(enderEmitNode, 'nro'),
+                bairro: getTagText(enderEmitNode, 'xBairro'),
+                municipio: getTagText(enderEmitNode, 'xMun'),
+                uf: getTagText(enderEmitNode, 'UF'),
+                cep: getTagText(enderEmitNode, 'CEP'),
+                fone: getTagText(enderEmitNode, 'fone')
+              };
+
+              parsedNfe.destinatario = {
+                nome: getTagText(destNode, 'xNome'),
+                cnpj: getTagText(destNode, 'CNPJ') || getTagText(destNode, 'CPF'),
+                ie: getTagText(destNode, 'IE'),
+                logradouro: getTagText(enderDestNode, 'xLgr'),
+                numero: getTagText(enderDestNode, 'nro'),
+                bairro: getTagText(enderDestNode, 'xBairro'),
+                municipio: getTagText(enderDestNode, 'xMun'),
+                uf: getTagText(enderDestNode, 'UF'),
+                cep: getTagText(enderDestNode, 'CEP')
+              };
+
               parsedNfe.transportadora = { nome: getTagText(transportaNode, 'xNome') };
               parsedNfe.volumes = getTagText(transpVolNode, 'qVol');
 

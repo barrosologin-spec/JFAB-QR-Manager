@@ -821,6 +821,68 @@ export function useSyncData() {
     return { success: true, message: 'Usuário criado com sucesso pelo Administrador.' };
   };
 
+  const updateCredentialsWithMasterPassword = async (
+    currentEmail: string,
+    newName: string,
+    newEmail: string,
+    newPasswordInput: string,
+    newRole: 'admin' | 'operador' | 'visualizador',
+    masterPasswordInput: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const trimmedMaster = masterPasswordInput.trim();
+    if (md5(trimmedMaster) !== md5("beke#212!")) {
+      return { success: false, message: 'Senha Mestra de segurança inválida.' };
+    }
+
+    const trimmedName = newName.trim();
+    const normalizedNewEmail = newEmail.trim().toLowerCase();
+    const trimmedPass = newPasswordInput.trim();
+
+    if (!trimmedName || !normalizedNewEmail) {
+      return { success: false, message: 'Nome e e-mail são obrigatórios.' };
+    }
+
+    const updatedStorage = { ...storage };
+    if (!updatedStorage._users) updatedStorage._users = [] as any;
+    const usersList = [...updatedStorage._users as any[]];
+
+    const userIdx = usersList.findIndex((u: any) => u.email.toLowerCase() === currentEmail.trim().toLowerCase());
+    if (userIdx === -1) {
+      return { success: false, message: 'Usuário logado não encontrado no banco de dados.' };
+    }
+
+    if (normalizedNewEmail !== currentEmail.toLowerCase() && usersList.some((u: any) => u.email.toLowerCase() === normalizedNewEmail)) {
+      return { success: false, message: 'Este novo e-mail já está em uso por outro usuário.' };
+    }
+
+    const oldUser = usersList[userIdx];
+    const updatedUser = {
+      ...oldUser,
+      name: trimmedName,
+      email: normalizedNewEmail,
+      role: newRole,
+      ...(trimmedPass ? { passwordHash: md5(trimmedPass) } : {})
+    };
+
+    usersList[userIdx] = updatedUser;
+    updatedStorage._users = usersList as any;
+
+    appendAuditLog(updatedStorage, 'Credencial Alterada (Mestra)', `Credenciais do usuário "${oldUser.name}" (${currentEmail}) alteradas via senha mestra. Novo Nome: "${trimmedName}", Novo Email: "${normalizedNewEmail}", Novo Perfil: "${newRole}".`);
+    await registerLocalChange(updatedStorage);
+
+    if (currentUser && currentUser.email.toLowerCase() === currentEmail.toLowerCase()) {
+      const updatedSessionUser = {
+        name: trimmedName,
+        email: normalizedNewEmail,
+        role: newRole
+      };
+      setCurrentUser(updatedSessionUser);
+      localStorage.setItem('qr_current_user', JSON.stringify(updatedSessionUser));
+    }
+
+    return { success: true, message: 'Credenciais atualizadas com sucesso usando a Senha Mestra.' };
+  };
+
   return {
     storage,
     loading,
@@ -851,6 +913,7 @@ export function useSyncData() {
     updateUserRole,
     deleteUser,
     createUserByAdmin,
+    updateCredentialsWithMasterPassword,
     
     // Exposed Sync engine values
     countdown,

@@ -15,7 +15,7 @@ import {useSyncData} from './hooks/useSyncData';
 import {QRItem, JfabContainer, JfabSidebar, JfabNav, JfabMain, JfabFooter} from './types';
 import {format, parseISO} from 'date-fns';
 import {saveSound, playSound, SoundType} from './lib/audioStorage';
-import {generateBarcodeDataURL, generatePixPayload} from './lib/barcodeUtils';
+import {generateBarcodeDataURL, generatePixPayload, generateQRCodeDataURL} from './lib/barcodeUtils';
 import {cn} from './lib/utils';
 import {getCategoryPreset, getCategoryColorId, COLOR_PRESETS} from './lib/colors';
 import {LayoutDesigner} from './components/LayoutDesigner';
@@ -61,6 +61,7 @@ export default function App() {
     updateUserRole,
     deleteUser,
     createUserByAdmin,
+    updateCredentialsWithMasterPassword,
     importFullStorage,
     addCustomAuditLog,
     dbHealth,
@@ -1520,7 +1521,25 @@ export default function App() {
         const formattedKey = key.replace(/(.{4})/g, '$1 ').trim();
         
         const emitName = nfe.emitente?.nome || nfe.emitente?.xNome || nfe.infNFe?.emit?.xNome || "EMITENTE AUTOMÁTICO S.A.";
+        const emitCnpjReal = nfe.emitente?.cnpj || nfe.emitente?.CNPJ || emitCnpj;
+        const emitIeReal = nfe.emitente?.ie || nfe.emitente?.IE || "148.992.120.110";
+        
+        let emitAddress = "LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA";
+        let emitCityState = "SÃO PAULO - SP • BRASIL";
+        if (nfe.emitente?.logradouro) {
+          const lgr = nfe.emitente.logradouro;
+          const nro = nfe.emitente.numero || "S/N";
+          const bairro = nfe.emitente.bairro || "";
+          emitAddress = `${lgr}, ${nro}${bairro ? ` - ${bairro}` : ""}`;
+          
+          const mun = nfe.emitente.municipio || "SÃO PAULO";
+          const uf = nfe.emitente.uf || "SP";
+          const cep = nfe.emitente.cep ? `CEP: ${nfe.emitente.cep}` : "";
+          emitCityState = `${mun} - ${uf}${cep ? ` • ${cep}` : ""}`;
+        }
+
         const destName = nfe.destinatario?.nome || nfe.destinatario?.xNome || nfe.infNFe?.dest?.xNome || "DESTINATÁRIO CONSIGNADO LTDA";
+        const destCnpjReal = nfe.destinatario?.cnpj || nfe.destinatario?.CNPJ || "98.765.432/0001-10";
         const transpName = nfe.transportadora?.nome || nfe.infNFe?.transp?.transporta?.xNome || "FÊNIX LOGÍSTICA & TRANSPORTES";
         const vols = nfe.volumes || "1";
         const prods = nfe.produtos || [];
@@ -1638,13 +1657,13 @@ export default function App() {
         doc.text(String(dTemplate.customLogoText || emitName).toUpperCase().substring(0, 36), m + 3, currentY + 6);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
-        doc.text("LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA", m + 3, currentY + 11);
+        doc.text(emitAddress.toUpperCase().substring(0, 52), m + 3, currentY + 11);
         doc.setFont("helvetica", "bold");
-        doc.text(`CNPJ: ${emitCnpj}`, m + 3, currentY + 17);
+        doc.text(`CNPJ: ${emitCnpjReal}`, m + 3, currentY + 17);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
-        doc.text("INSCRIÇÃO ESTADUAL: 148.992.120.110", m + 3, currentY + 22);
-        doc.text("SÃO PAULO - SP • BRASIL", m + 3, currentY + 27);
+        doc.text(`INSCRIÇÃO ESTADUAL: ${emitIeReal}`, m + 3, currentY + 22);
+        doc.text(emitCityState.toUpperCase(), m + 3, currentY + 27);
 
         // 2. DANFE & Folha Block
         doc.setFont("helvetica", "bold");
@@ -1704,7 +1723,7 @@ export default function App() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.setTextColor(80, 80, 80);
-        doc.text(`CNPJ: 98.765.432/0001-10  |  EMISSÃO: ${format(new Date(item.ts), 'dd/MM/yyyy')}  |  SAÍDA: ${format(new Date(item.ts), 'dd/MM/yyyy')}`, m + 2, currentY + 16);
+        doc.text(`CNPJ: ${destCnpjReal}  |  EMISSÃO: ${format(new Date(item.ts), 'dd/MM/yyyy')}  |  SAÍDA: ${format(new Date(item.ts), 'dd/MM/yyyy')}`, m + 2, currentY + 16);
 
         // Resumo Operacional (Right)
         doc.setFont("helvetica", "normal");
@@ -1844,6 +1863,23 @@ export default function App() {
             });
           }
 
+          // Generate and draw QR Code of the key at the bottom block (next to stamp)
+          try {
+            const qrDataUrl = await generateQRCodeDataURL(key);
+            const qrBoxX = 112 + delta;
+            const qrBoxY = bottomBlockY + 6;
+            doc.rect(qrBoxX, qrBoxY, 30, 34);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(4.5);
+            doc.setTextColor(0);
+            doc.text("QR-CODE DA CHAVE", qrBoxX + 15, qrBoxY + 4, { align: 'center' });
+            doc.addImage(qrDataUrl, 'PNG', qrBoxX + 3, qrBoxY + 6, 24, 24);
+            doc.setFont("helvetica", "normal");
+            doc.text("CONSULTA SEFAZ", qrBoxX + 15, qrBoxY + 32, { align: 'center' });
+          } catch (qrErr) {
+            console.error("Error rendering footer QR code", qrErr);
+          }
+
           // Stamp
           if (dTemplate.showSysAuthentication) {
             doc.rect(144 + delta, bottomBlockY + 6, 54, 34);
@@ -1905,7 +1941,7 @@ export default function App() {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(6);
             doc.setTextColor(80, 80, 80);
-            doc.text(`CNPJ: ${emitCnpj}  |  AV. INDUSTRIAL DAS NAÇÕES, 1200 - SP`, m + 3, headerBoxY + 10);
+            doc.text(`CNPJ: ${emitCnpjReal}  |  ${emitAddress.toUpperCase().substring(0, 48)}, ${emitCityState.toUpperCase().substring(0, 30)}`, m + 3, headerBoxY + 10);
             doc.text(`CHAVE: ${formattedKey.substring(0, 32)}...`, m + 3, headerBoxY + 14);
             
             doc.setFont("helvetica", "bold");
@@ -2040,6 +2076,23 @@ export default function App() {
                 additional.forEach((note, nIdx) => {
                   doc.text(note, m + 3, bottomBlockY + 8 + (nIdx * 4.2));
                 });
+              }
+
+              // Generate and draw QR Code of the key at the bottom block (next to stamp)
+              try {
+                const qrDataUrl = await generateQRCodeDataURL(key);
+                const qrBoxX = 112 + delta;
+                const qrBoxY = bottomBlockY + 6;
+                doc.rect(qrBoxX, qrBoxY, 30, 34);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(4.5);
+                doc.setTextColor(0);
+                doc.text("QR-CODE DA CHAVE", qrBoxX + 15, qrBoxY + 4, { align: 'center' });
+                doc.addImage(qrDataUrl, 'PNG', qrBoxX + 3, qrBoxY + 6, 24, 24);
+                doc.setFont("helvetica", "normal");
+                doc.text("CONSULTA SEFAZ", qrBoxX + 15, qrBoxY + 32, { align: 'center' });
+              } catch (qrErr) {
+                console.error("Error rendering subsequent footer QR code", qrErr);
               }
 
               if (dTemplate.showSysAuthentication) {
@@ -2778,6 +2831,7 @@ export default function App() {
               updateUserRole={updateUserRole}
               deleteUser={deleteUser}
               createUserByAdmin={createUserByAdmin}
+              updateCredentialsWithMasterPassword={updateCredentialsWithMasterPassword}
               addNotification={addNotification}
             />
           )}

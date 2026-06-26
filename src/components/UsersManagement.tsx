@@ -27,6 +27,7 @@ interface UsersManagementProps {
   updateUserRole: (email: string, role: 'admin' | 'operador' | 'visualizador') => Promise<boolean>;
   deleteUser: (email: string) => Promise<boolean>;
   createUserByAdmin: (name: string, email: string, passwordInput: string, role: 'admin' | 'operador' | 'visualizador') => Promise<{ success: boolean; message: string }>;
+  updateCredentialsWithMasterPassword: (currentEmail: string, newName: string, newEmail: string, newPasswordInput: string, newRole: 'admin' | 'operador' | 'visualizador', masterPasswordInput: string) => Promise<{ success: boolean; message: string }>;
   addNotification: (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => void;
 }
 
@@ -36,6 +37,7 @@ export function UsersManagement({
   updateUserRole, 
   deleteUser, 
   createUserByAdmin,
+  updateCredentialsWithMasterPassword,
   addNotification 
 }: UsersManagementProps) {
   
@@ -52,6 +54,61 @@ export function UsersManagement({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Edit Credentials states (for non-admin elevation via Master Password)
+  const [editName, setEditName] = useState(currentUser?.name || '');
+  const [editEmail, setEditEmail] = useState(currentUser?.email || '');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<'admin' | 'operador' | 'visualizador'>(
+    (currentUser?.role as 'admin' | 'operador' | 'visualizador') || 'operador'
+  );
+  const [masterPassword, setMasterPassword] = useState('');
+  const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
+  const [updateCredsError, setUpdateCredsError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      setEditName(currentUser.name);
+      setEditEmail(currentUser.email);
+      setEditRole((currentUser.role as 'admin' | 'operador' | 'visualizador') || 'operador');
+    }
+  }, [currentUser]);
+
+  const handleUpdateCredsWithMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdateCredsError(null);
+
+    if (!currentUser) return;
+
+    if (!editName.trim() || !editEmail.trim() || !masterPassword.trim()) {
+      setUpdateCredsError('Nome, E-mail e Senha Mestra são obrigatórios.');
+      return;
+    }
+
+    setIsUpdatingCreds(true);
+    try {
+      const result = await updateCredentialsWithMasterPassword(
+        currentUser.email,
+        editName,
+        editEmail,
+        editPassword,
+        editRole,
+        masterPassword
+      );
+
+      if (result.success) {
+        addNotification('success', 'Credenciais Atualizadas', result.message);
+        setEditPassword('');
+        setMasterPassword('');
+      } else {
+        setUpdateCredsError(result.message);
+      }
+    } catch (err) {
+      setUpdateCredsError('Ocorreu um erro ao atualizar credenciais.');
+    } finally {
+      setIsUpdatingCreds(false);
+    }
+  };
 
   // Fetch users list from storage
   const usersList = useMemo(() => {
@@ -372,6 +429,111 @@ export function UsersManagement({
 
         {/* Privileges Matrix & Security Rules */}
         <div className="space-y-4">
+          {!isAdmin && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <KeyRound size={18} className="text-amber-500" />
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-850 dark:text-slate-200">
+                    Alterar Minhas Credenciais (Senha Mestra)
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                    Modifique seu perfil ou eleve seu acesso
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateCredsWithMaster} className="space-y-3.5 text-xs">
+                {updateCredsError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-xl font-bold flex items-center gap-1.5 leading-tight">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{updateCredsError}</span>
+                  </div>
+                )}
+
+                {/* Novo Nome */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                    Nome Completo
+                  </label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Seu Nome"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Novo Email */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                    E-mail de Acesso
+                  </label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Nova Senha */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                    Nova Senha (deixe em branco para não alterar)
+                  </label>
+                  <input
+                    type="password"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Novo Cargo / Perfil */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                    Perfil de Acesso Solicitado
+                  </label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-850 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  >
+                    <option value="admin">Administrador (Total)</option>
+                    <option value="operador">Operador (Leitura &amp; Escrita)</option>
+                    <option value="visualizador">Visualizador (Somente Leitura)</option>
+                  </select>
+                </div>
+
+                {/* Senha Mestra */}
+                <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-2xl space-y-2">
+                  <label className="block text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">
+                    Senha Mestra do Sistema (Chave de Segurança)
+                  </label>
+                  <input
+                    type="password"
+                    value={masterPassword}
+                    onChange={(e) => setMasterPassword(e.target.value)}
+                    placeholder="Insira a Senha Mestra"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-500/30 rounded-xl text-slate-850 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUpdatingCreds}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-black text-xs uppercase tracking-widest cursor-pointer disabled:opacity-50 transition active:scale-95"
+                >
+                  {isUpdatingCreds ? 'ATUALIZANDO...' : 'APLICAR ALTERAÇÕES'}
+                </button>
+              </form>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-850 dark:text-slate-200 mb-4 flex items-center gap-1.5">
               <Settings size={14} className="text-slate-500" />

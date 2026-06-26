@@ -25,6 +25,22 @@ export async function generateBarcodeDataURL(text: string): Promise<string> {
   });
 }
 
+export async function generateQRCodeDataURL(text: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    try {
+      bwipjs.toCanvas(canvas, {
+        bcid: 'qrcode',
+        text: text,
+        scale: 3
+      });
+      resolve(canvas.toDataURL('image/png'));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 function computeCRC16(data: string): string {
   let crc = 0xFFFF;
   for (let i = 0; i < data.length; i++) {
