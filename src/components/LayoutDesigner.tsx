@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
 import { 
@@ -19,11 +19,13 @@ import {
   RotateCcw,
   Heading,
   HelpCircle,
-  Tag
+  Tag,
+  Database
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { generateBarcodeDataURL } from '../lib/barcodeUtils';
 import { useSyncData } from '../hooks/useSyncData';
+import { QRItem } from '../types';
 
 interface DesignerTemplate {
   name: string;
@@ -162,9 +164,31 @@ const DEFAULT_TEMPLATES: Record<string, DesignerTemplate> = {
   }
 };
 
-export function LayoutDesigner() {
-  const { addCustomAuditLog } = useSyncData();
+export function LayoutDesigner({ onDownloadDanfePDF }: { onDownloadDanfePDF?: (targetItems?: QRItem[]) => Promise<void> } = {}) {
+  const { storage, addCustomAuditLog } = useSyncData();
   const [activeSubTab, setActiveSubTab] = useState<'item' | 'plate' | 'danfe'>('item');
+
+  // Parse all NF-e items across all coletas
+  const nfeItems = useMemo(() => {
+    const arr: { category: string; date: string; container: string; item: QRItem; sourceData: any }[] = [];
+    Object.entries(storage || {}).forEach(([cat, dates]) => {
+      if (cat.startsWith('_')) return;
+      Object.entries(dates as any).forEach(([date, containers]) => {
+        if (date.startsWith('_')) return;
+        Object.entries(containers as any).forEach(([cont, contData]: [string, any]) => {
+          if (cont.startsWith('_')) return;
+          if (contData && contData.items) {
+            contData.items.forEach((item: QRItem) => {
+              if (item.nfeData) {
+                arr.push({ category: cat, date, container: cont, item, sourceData: item.nfeData });
+              }
+            });
+          }
+        });
+      });
+    });
+    return arr.sort((a, b) => b.item.ts - a.item.ts);
+  }, [storage]);
 
   // Load custom template item
   const [templateItem, setTemplateItem] = useState<DesignerTemplate>(() => {
@@ -251,6 +275,85 @@ export function LayoutDesigner() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [customKey, setCustomKey] = useState("35230912345678000190550010001234561001234567");
+
+  const activeNfe = useMemo(() => {
+    const found = nfeItems.find(x => x.item.t === customKey);
+    return found ? found.sourceData : null;
+  }, [nfeItems, customKey]);
+
+  const activeNfeDetails = useMemo(() => {
+    if (!activeNfe) {
+      return {
+        emitenteNome: templateDanfe.customLogoText || "EMITENTE AUTOMÁTICO S.A.",
+        emitenteEndereco: "AV. BRASIL, 1500 - DISTRITO INDUSTRIAL",
+        destinatarioNome: "CLIENTE OPERACIONAL DE LOGÍSTICA S.A.",
+        destinatarioCnpj: "12.345.678/0001-90",
+        totalProdutos: "R$ 1.250,00",
+        totalNota: "R$ 1.250,00",
+        icmsBase: "R$ 0,00",
+        icmsValor: "R$ 0,00",
+        produtos: [
+          { code: '001', name: 'PEÇA REFORÇADA DE AÇO INOX PL88', qty: 1, un: 'UN', val: 'R$ 450,00' },
+          { code: '002', name: 'SUPORTE ADAPTADOR METALICO AUTO9', qty: 2, un: 'UN', val: 'R$ 350,00' },
+          { code: '003', name: 'CABO CONDUTOR TRIFÁSICO BRUT COLEX', qty: 1, un: 'MT', val: 'R$ 100,00' }
+        ]
+      };
+    }
+
+    const parseNfeKey = (key: string) => {
+      if (key && key.length === 44) {
+        const series = parseInt(key.substring(22, 25), 10) || 1;
+        const number = parseInt(key.substring(25, 34), 10) || 123456;
+        const cnpj = key.substring(6, 20).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+        return { series, number, cnpj };
+      }
+      return { series: 1, number: 123456, cnpj: "12.345.678/0001-90" };
+    };
+
+    const { series, number } = parseNfeKey(customKey);
+    const rawProds = activeNfe.produtos || [];
+    
+    // Deterministic pricing calculations
+    let totalProdValue = 0;
+    const detailed = rawProds.map((p: any, idx: number) => {
+      const qty = parseFloat(p.qtd) || 1;
+      const nameLen = p.nome ? p.nome.length : 10;
+      const unitPrice = 25.00 + (nameLen % 7) * 23.50 + (idx % 3) * 11.20;
+      const totalVal = unitPrice * qty;
+      totalProdValue += totalVal;
+      return {
+        code: String(1001 + idx),
+        name: p.nome || "PRODUTO DE CONSUMO INDUSTRIAL",
+        qty,
+        un: p.un || p.unidade || "UN",
+        val: totalVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      };
+    });
+
+    const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    let emitAddress = "AV. BRASIL, 1500 - DISTRITO INDUSTRIAL";
+    if (activeNfe.emitente?.logradouro) {
+      const lgr = activeNfe.emitente.logradouro;
+      const nro = activeNfe.emitente.numero || "S/N";
+      const bairro = activeNfe.emitente.bairro || "";
+      const mun = activeNfe.emitente.municipio || "";
+      const uf = activeNfe.emitente.uf || "";
+      emitAddress = `${lgr}, ${nro} - ${bairro}, ${mun} - ${uf}`;
+    }
+
+    return {
+      emitenteNome: activeNfe.emitente?.nome || activeNfe.emitente?.xNome || activeNfe.infNFe?.emit?.xNome || templateDanfe.customLogoText || "EMITENTE AUTOMÁTICO S.A.",
+      emitenteEndereco: emitAddress,
+      destinatarioNome: activeNfe.destinatario?.nome || activeNfe.destinatario?.xNome || activeNfe.infNFe?.dest?.xNome || "CLIENTE OPERACIONAL DE LOGÍSTICA S.A.",
+      destinatarioCnpj: activeNfe.destinatario?.cnpj || activeNfe.destinatario?.CNPJ || "12.345.678/0001-90",
+      totalProdutos: formatCurrency(totalProdValue),
+      totalNota: formatCurrency(totalProdValue),
+      icmsBase: formatCurrency(totalProdValue),
+      icmsValor: formatCurrency(totalProdValue * 0.18),
+      produtos: detailed.slice(0, 3)
+    };
+  }, [activeNfe, customKey, templateDanfe.customLogoText]);
 
   // Dynamic template resolver
   const template = activeSubTab === 'danfe' 
@@ -363,6 +466,50 @@ export function LayoutDesigner() {
   const handleDownloadSinglePDF = async () => {
     showToast("Gerando arquivo PDF...", "info");
     
+    if (activeSubTab === 'danfe') {
+      if (onDownloadDanfePDF) {
+        // Find if we have a real scanned item for the active key
+        const found = nfeItems.find(x => x.item.t === customKey);
+        if (found) {
+          await onDownloadDanfePDF([found.item]);
+        } else {
+          // If no scanned item matches, construct a simulated QRItem with customKey and template settings and generate it
+          const simulatedItem: QRItem = {
+            t: customKey,
+            ts: Date.now(),
+            nfeData: {
+              chave: customKey,
+              emitente: {
+                nome: templateDanfe.customLogoText || "EMITENTE AUTOMÁTICO S.A.",
+                cnpj: "12.345.678/0001-90",
+                logradouro: "AV. BRASIL",
+                numero: "1500",
+                bairro: "DISTRITO INDUSTRIAL",
+                municipio: "SÃO PAULO",
+                uf: "SP"
+              },
+              destinatario: {
+                nome: "CLIENTE OPERACIONAL DE LOGÍSTICA S.A.",
+                cnpj: "12.345.678/0001-90"
+              },
+              produtos: [
+                { nome: 'PEÇA REFORÇADA DE AÇO INOX PL88', qtd: '1', unitPrice: '450.00', totalVal: '450.00', code: '001', unit: 'UN' },
+                { nome: 'SUPORTE ADAPTADOR METALICO AUTO9', qtd: '2', unitPrice: '350.00', totalVal: '700.00', code: '002', unit: 'UN' },
+                { nome: 'CABO CONDUTOR TRIFÁSICO BRUT COLEX', qtd: '1', unitPrice: '100.00', totalVal: '100.00', code: '003', unit: 'MT' }
+              ],
+              total: {
+                vNF: "1250.00"
+              }
+            }
+          };
+          await onDownloadDanfePDF([simulatedItem]);
+        }
+      } else {
+        showToast("Gerador de DANFE indisponível no momento.", "error");
+      }
+      return;
+    }
+
     if (activeSubTab === 'plate') {
       // 1. GENERATE FULL ORIGINAL STANDARD A4 CONTAINER PLATE
       const doc = new jsPDF('p', 'mm', 'a4');
@@ -812,6 +959,75 @@ export function LayoutDesigner() {
                   <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Identidade Visual & Cores (DANFE)</h4>
                 </div>
                 
+                {/* Dynamic NF-e Key Linking */}
+                <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl space-y-3.5 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Database size={15} className="text-emerald-500 shrink-0" />
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                      Vincular Dados de NF-e Escaneada
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Selecione uma Nota Fiscal do Sistema
+                    </label>
+                    <select
+                      value={nfeItems.some(x => x.item.t === customKey) ? customKey : ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          setCustomKey(val);
+                          const found = nfeItems.find(x => x.item.t === val);
+                          if (found) {
+                            const name = found.sourceData?.emitente?.nome || found.sourceData?.emitente?.xNome || found.sourceData?.infNFe?.emit?.xNome || "";
+                            if (name) {
+                              setDanfeField('customLogoText', name);
+                            }
+                          }
+                          showToast("Dados da NF-e vinculados ao estúdio!", "success");
+                        } else {
+                          setCustomKey("35230912345678000190550010001234561001234567");
+                          showToast("Retornado ao modelo de testes fictício.", "info");
+                        }
+                      }}
+                      className="w-full text-xs font-bold px-3 py-2 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-850 rounded-xl cursor-pointer"
+                    >
+                      <option value="">-- Usar Chave Fictícia de Teste --</option>
+                      {nfeItems.map(({ item, sourceData }) => {
+                        const issuer = sourceData?.emitente?.nome || sourceData?.emitente?.xNome || sourceData?.infNFe?.emit?.xNome || "Emitente Desconhecido";
+                        const shortKey = `${item.t.substring(0, 4)}...${item.t.substring(40)}`;
+                        return (
+                          <option key={item.t + item.ts} value={item.t}>
+                            {issuer} (Chave: {shortKey})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {nfeItems.some(x => x.item.t === customKey) && (
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold space-y-1 bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-xl border border-emerald-100/40">
+                      <div className="flex justify-between">
+                        <span>Chave Ativa:</span>
+                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">{customKey}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Produtos:</span>
+                        <span className="font-extrabold text-slate-700 dark:text-slate-200">
+                          {nfeItems.find(x => x.item.t === customKey)?.sourceData?.produtos?.length || 0} itens
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Destinatário:</span>
+                        <span className="font-extrabold text-slate-750 dark:text-slate-250 truncate max-w-[140px]">
+                          {nfeItems.find(x => x.item.t === customKey)?.sourceData?.destinatario?.nome || "Não informado"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Emitente</label>
@@ -1566,7 +1782,7 @@ export function LayoutDesigner() {
                     <div className="border border-dashed p-1 mb-1 text-[5px] space-y-0.5" style={{ borderColor: templateDanfe.themeColor }}>
                       <div className="flex justify-between font-bold" style={{ color: templateDanfe.themeColor }}>
                         <span>RECEBEMOS OS PRODUTOS DA NOTA FISCAL INDICADA ABAIXO</span>
-                        <span>NF-e Nº 000.000.123</span>
+                        <span>NF-e Nº {customKey && customKey.length === 44 ? parseInt(customKey.substring(25, 34), 10) : '000.123'}</span>
                       </div>
                       <div className="grid grid-cols-3 gap-1 pt-1 text-slate-500">
                         <div className="border-t pt-0.5">DATA DE RECEBIMENTO</div>
@@ -1578,25 +1794,28 @@ export function LayoutDesigner() {
                   {/* Main Header of DANFE */}
                   <div className="grid grid-cols-12 gap-1 border p-1 text-[5px]" style={{ borderColor: templateDanfe.themeColor }}>
                     <div className="col-span-5 border-r pr-1 flex flex-col justify-center" style={{ borderColor: templateDanfe.themeColor }}>
-                      <span className="font-mono text-[4px] text-slate-400 block uppercase">EMISSOR DIGITAL</span>
+                      <span className="font-mono text-[4px] text-slate-400 block uppercase text-[3.5px]">EMISSOR DIGITAL</span>
                       <h3 className="font-black leading-tight uppercase truncate" style={{ color: templateDanfe.themeColor, fontSize: `${templateDanfe.fontSizeHeader - 2}px` }}>
-                        {templateDanfe.customLogoText || "EMITENTE AUTOMÁTICO S.A."}
+                        {activeNfeDetails.emitenteNome}
                       </h3>
-                      <span className="text-[4px] text-slate-400 truncate">AV. BRASIL, 1500 - DISTRITO INDUSTRIAL</span>
+                      <span className="text-[4px] text-slate-400 truncate block">{activeNfeDetails.emitenteEndereco}</span>
                     </div>
 
-                    <div className="col-span-3 border-r px-1 text-center flex flex-col justify-center" style={{ borderColor: templateDanfe.themeColor }}>
-                      <span className="font-bold block">DANFE</span>
+                    <div className="col-span-3 border-r px-1 text-center flex flex-col justify-center animate-pulse" style={{ borderColor: templateDanfe.themeColor }}>
+                      <span className="font-bold block text-[5px]">DANFE</span>
                       <span className="text-[3.5px] text-slate-500 block leading-none">DOC. AUXILIAR DE NF-e</span>
-                      <div className="mt-0.5 font-bold">Nº 000.000.123<br />SÉRIE 001</div>
+                      <div className="mt-0.5 font-bold leading-tight">
+                        Nº {customKey && customKey.length === 44 ? parseInt(customKey.substring(25, 34), 10) : '000.123'}<br />
+                        SÉRIE {customKey && customKey.length === 44 ? parseInt(customKey.substring(22, 25), 10) : '001'}
+                      </div>
                     </div>
 
                     <div className="col-span-4 pl-1 flex flex-col justify-center items-center">
-                      <div className="w-full h-3 bg-slate-200 rounded flex items-center justify-center font-mono text-[4px] text-slate-500">
+                      <div className="w-full h-3 bg-slate-100 rounded flex items-center justify-center font-mono text-[4px] text-slate-500 uppercase tracking-widest border border-slate-200">
                         [ BARCODE ]
                       </div>
-                      <div className="text-[3.5px] mt-0.5 text-slate-500 truncate w-full text-center">
-                        KEY: 3526 0612 3456 7890 0112 5500 1000 0001
+                      <div className="text-[3px] mt-0.5 text-slate-500 font-mono truncate w-full text-center">
+                        KEY: {customKey ? customKey.replace(/(.{4})/g, '$1 ').trim() : "3523 0912 3456 7800 0190..."}
                       </div>
                     </div>
                   </div>
@@ -1609,11 +1828,11 @@ export function LayoutDesigner() {
                     <div className="border p-1 grid grid-cols-4 gap-1" style={{ borderColor: templateDanfe.themeColor }}>
                       <div className="col-span-2">
                         <span className="text-slate-400 block font-normal">NOME / RAZÃO SOCIAL</span>
-                        <span className="font-bold truncate block">CLIENTE OPERACIONAL DE LOGÍSTICA S.A.</span>
+                        <span className="font-bold truncate block">{activeNfeDetails.destinatarioNome}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block font-normal">CNPJ / CPF</span>
-                        <span className="font-bold">12.345.678/0001-90</span>
+                        <span className="font-bold truncate block">{activeNfeDetails.destinatarioCnpj}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block font-normal">EMISSÃO</span>
@@ -1630,19 +1849,19 @@ export function LayoutDesigner() {
                     <div className="border p-1 grid grid-cols-4 gap-1 text-center" style={{ borderColor: templateDanfe.themeColor }}>
                       <div>
                         <span className="text-slate-400 block font-normal">BASE CÁLC. ICMS</span>
-                        <span className="font-bold">R$ 0,00</span>
+                        <span className="font-bold">{activeNfeDetails.icmsBase}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block font-normal">VALOR DO ICMS</span>
-                        <span className="font-bold">R$ 0,00</span>
+                        <span className="font-bold">{activeNfeDetails.icmsValor}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block font-normal">V. TOTAL PRODUTOS</span>
-                        <span className="font-bold text-emerald-600">R$ 1.250,00</span>
+                        <span className="font-bold text-emerald-600">{activeNfeDetails.totalProdutos}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block font-normal">V. TOTAL DA NOTA</span>
-                        <span className="font-bold text-emerald-600">R$ 1.250,00</span>
+                        <span className="font-bold text-emerald-600">{activeNfeDetails.totalNota}</span>
                       </div>
                     </div>
                   </div>
@@ -1662,11 +1881,7 @@ export function LayoutDesigner() {
                         </div>
                       </div>
                       <div className="p-1 bg-white flex-1 flex flex-col justify-around">
-                        {[
-                          { code: '001', name: 'PEÇA REFORÇADA DE AÇO INOX PL88', qty: 1, un: 'UN', val: 'R$ 450,00' },
-                          { code: '002', name: 'SUPORTE ADAPTADOR METALICO AUTO9', qty: 2, un: 'UN', val: 'R$ 350,00' },
-                          { code: '003', name: 'CABO CONDUTOR TRIFÁSICO BRUT COLEX', qty: 1, un: 'MT', val: 'R$ 100,00' }
-                        ].map((p, idx) => (
+                        {activeNfeDetails.produtos.map((p, idx) => (
                           <div 
                             key={idx} 
                             className="flex justify-between border-b border-dashed border-slate-100 pb-0.5 text-slate-600"
@@ -1695,7 +1910,7 @@ export function LayoutDesigner() {
                         {templateDanfe.showAdditionalNotes && (
                           <>
                             <span className="font-bold block uppercase" style={{ color: templateDanfe.themeColor }}>DADOS ADICIONAIS</span>
-                            <p className="truncate">Série de Coleta Integrada. Resp. José Felipe.</p>
+                            <p className="truncate">Série de Coleta Integrada. Resp. {localStorage.getItem('jfab_operator_name') || "José Felipe"}.</p>
                             <p className="truncate">Chancelado por QR Manager Cloud.</p>
                           </>
                         )}

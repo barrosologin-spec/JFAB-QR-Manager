@@ -3446,7 +3446,7 @@ export default function App() {
           )}
 
           {currentTab === 'designer' && (
-            <LayoutDesigner />
+            <LayoutDesigner onDownloadDanfePDF={handleDownloadDanfePDF} />
           )}
 
           {currentTab === 'coletas' && (
