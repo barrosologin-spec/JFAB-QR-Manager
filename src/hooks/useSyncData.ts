@@ -2,7 +2,7 @@
  * Desenvolvido por José Felipe A. Barroso (pixdobarroso@gmail.com)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRStorage, QRItem, Notification } from '../types';
 import { playSound } from '../lib/audioStorage';
 import { md5 } from '../lib/md5';
@@ -145,8 +145,10 @@ export function useSyncData() {
     loadSettings();
   }, []);
 
+  const consecutiveFailsRef = useRef(0);
+
   // Core Sync Function: Retrieve the latest backend state from storage.json
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (isAutoSync: boolean = false) => {
     setIsSyncing(true);
     try {
       const remoteRes = await fetch('/api/sync');
@@ -157,7 +159,13 @@ export function useSyncData() {
         const remoteUpdated = remoteJson.qrStorageLastUpdated || Date.now();
         setLastLocalUpdatedTime(remoteUpdated);
         setLastSyncTime(Date.now());
-        addNotification('success', 'Sincronizado', 'Dados sincronizados com o servidor.');
+        
+        // Show success if manual sync OR if we just recovered from a failure
+        if (!isAutoSync || consecutiveFailsRef.current >= 3) {
+          addNotification('success', 'Sincronizado', 'Dados sincronizados com o servidor.');
+        }
+        consecutiveFailsRef.current = 0;
+        
         // Update database size and health information
         await fetchDbHealth();
         return true;
@@ -165,7 +173,12 @@ export function useSyncData() {
       return false;
     } catch (error) {
       console.error("Synchronization failed:", error);
-      addNotification('error', 'Sem Conexão', 'Sincronização com o servidor falhou.');
+      consecutiveFailsRef.current += 1;
+      
+      // Only show error notification if manual sync OR if it failed 3 times in a row
+      if (!isAutoSync || consecutiveFailsRef.current >= 3) {
+        addNotification('error', 'Sem Conexão', 'Sincronização com o servidor falhou.');
+      }
       return false;
     } finally {
       setIsSyncing(false);
@@ -177,7 +190,7 @@ export function useSyncData() {
     // If syncInterval is 0 (Tempo Real), poll every 3 seconds
     if (syncInterval === 0) {
       const timer = setInterval(() => {
-        syncNow();
+        syncNow(true);
       }, 3000);
       return () => clearInterval(timer);
     }
@@ -186,7 +199,7 @@ export function useSyncData() {
       setCountdown(prev => {
         if (prev <= 1) {
           // Trigger scheduled auto-sync on timer expiry
-          syncNow();
+          syncNow(true);
           return syncInterval * 60;
         }
         return prev - 1;

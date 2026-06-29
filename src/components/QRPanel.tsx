@@ -252,6 +252,14 @@ export function QRPanel({
         cleanValue = cleanValue.slice(1);
       }
       
+      // Auto-extract 44-digit NFe chave if it's embedded in a URL or text
+      const chaveMatch = cleanValue.match(/(?:chNFe=|p=|^|\D)(\d{44})(?:\D|$)/);
+      if (chaveMatch && chaveMatch[1]) {
+        cleanValue = chaveMatch[1];
+        finalValue = cleanValue;
+        setFormattingMsg(`Chave NF-e extraída do texto/URL lido...`);
+      }
+      
       if (cleanValue.startsWith('^') && cleanValue.endsWith('{')) {
         const raw = cleanValue.slice(0, -1); // remove {
         const pairs = raw.split(',');
@@ -354,14 +362,31 @@ export function QRPanel({
  
               parsedNfe.transportadora = { nome: getTagText(transportaNode, 'xNome') };
               parsedNfe.volumes = getTagText(transpVolNode, 'qVol');
- 
+              parsedNfe.pesoB = getTagText(transpVolNode, 'pesoB');
+              parsedNfe.pesoL = getTagText(transpVolNode, 'pesoL');
+
+              const icmsTotNode = xmlDoc.getElementsByTagName('ICMSTot')[0];
+              if (icmsTotNode) {
+                parsedNfe.total = {
+                  vProd: getTagText(icmsTotNode, 'vProd'),
+                  vNF: getTagText(icmsTotNode, 'vNF')
+                };
+              }
+
+              const infAdicNode = xmlDoc.getElementsByTagName('infAdic')[0];
+              parsedNfe.infCpl = getTagText(infAdicNode, 'infCpl');
+
               const detNodes = xmlDoc.getElementsByTagName('det');
               const produtos = [];
               for (let i = 0; i < detNodes.length; i++) {
                 const prodNode = detNodes[i].getElementsByTagName('prod')[0];
                 produtos.push({
+                  code: getTagText(prodNode, 'cProd'),
                   nome: getTagText(prodNode, 'xProd'),
-                  qtd: getTagText(prodNode, 'qCom')
+                  qtd: getTagText(prodNode, 'qCom'),
+                  unitPrice: getTagText(prodNode, 'vUnCom'),
+                  totalVal: getTagText(prodNode, 'vProd'),
+                  unit: getTagText(prodNode, 'uCom')
                 });
               }
               parsedNfe.produtos = produtos;
