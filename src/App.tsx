@@ -1521,33 +1521,31 @@ export default function App() {
         
         const formattedKey = key.replace(/(.{4})/g, '$1 ').trim();
         
-        const emitName = nfe.emitente?.nome || nfe.emitente?.xNome || nfe.infNFe?.emit?.xNome || "EMITENTE AUTOMÁTICO S.A.";
+        const emitName = nfe.emitente?.nome || nfe.emitente?.xNome || nfe.infNFe?.emit?.xNome || "";
         const emitCnpjReal = nfe.emitente?.cnpj || nfe.emitente?.CNPJ || emitCnpj;
-        const emitIeReal = nfe.emitente?.ie || nfe.emitente?.IE || "148.992.120.110";
+        const emitIeReal = nfe.emitente?.ie || nfe.emitente?.IE || "";
         
-        let emitAddress = "LOGÍSTICA E DISTRIBUIÇÃO CORPORATIVA";
-        let emitCityState = "SÃO PAULO - SP • BRASIL";
+        let emitAddress = "";
+        let emitCityState = "";
         if (nfe.emitente?.logradouro) {
           const lgr = nfe.emitente.logradouro;
           const nro = nfe.emitente.numero || "S/N";
           const bairro = nfe.emitente.bairro || "";
           emitAddress = `${lgr}, ${nro}${bairro ? ` - ${bairro}` : ""}`;
           
-          const mun = nfe.emitente.municipio || "SÃO PAULO";
-          const uf = nfe.emitente.uf || "SP";
+          const mun = nfe.emitente.municipio || "";
+          const uf = nfe.emitente.uf || "";
           const cep = nfe.emitente.cep ? `CEP: ${nfe.emitente.cep}` : "";
           emitCityState = `${mun} - ${uf}${cep ? ` • ${cep}` : ""}`;
         }
 
         const hasRealEmit = !!(nfe.emitente?.nome || nfe.emitente?.xNome || nfe.infNFe?.emit?.xNome);
-        const finalEmitName = (hasRealEmit && emitName !== "EMITENTE AUTOMÁTICO S.A.") 
-          ? emitName 
-          : (dTemplate.customLogoText && dTemplate.customLogoText !== "EMITENTE AUTOMÁTICO S.A." ? dTemplate.customLogoText : emitName);
+        const finalEmitName = hasRealEmit ? emitName : "";
 
-        const destName = nfe.destinatario?.nome || nfe.destinatario?.xNome || nfe.infNFe?.dest?.xNome || "DESTINATÁRIO CONSIGNADO LTDA";
-        const destCnpjReal = nfe.destinatario?.cnpj || nfe.destinatario?.CNPJ || "98.765.432/0001-10";
-        const transpName = nfe.transportadora?.nome || nfe.infNFe?.transp?.transporta?.xNome || "FÊNIX LOGÍSTICA & TRANSPORTES";
-        const vols = nfe.volumes || "1";
+        const destName = nfe.destinatario?.nome || nfe.destinatario?.xNome || nfe.infNFe?.dest?.xNome || "";
+        const destCnpjReal = nfe.destinatario?.cnpj || nfe.destinatario?.CNPJ || "";
+        const transpName = nfe.transportadora?.nome || nfe.infNFe?.transp?.transporta?.xNome || "";
+        const vols = nfe.volumes || "";
         const pesoB = nfe.pesoB || "";
         const formattedWeight = pesoB 
           ? `${parseFloat(pesoB).toFixed(3)}` 
@@ -1558,21 +1556,16 @@ export default function App() {
         // Calculate prices
         let totalProdValue = 0;
         const detailedProds = prods.map((p: any, idx: number) => {
-          const qty = parseFloat(p.qtd) || 1;
-          const code = p.code || String(1001 + idx);
-          const name = p.nome || "PRODUTO DE CONSUMO INDUSTRIAL";
-          const unit = p.unit || "UN";
+          const qty = parseFloat(p.qtd) || 0;
+          const code = p.code || "";
+          const name = p.nome || "";
+          const unit = p.unit || "";
           
           let unitPrice = parseFloat(p.unitPrice);
           let totalVal = parseFloat(p.totalVal);
           
-          if (isNaN(unitPrice) || !unitPrice) {
-            const nameLen = name.length;
-            unitPrice = 25.00 + (nameLen % 7) * 23.50 + (idx % 3) * 11.20;
-          }
-          if (isNaN(totalVal) || !totalVal) {
-            totalVal = unitPrice * qty;
-          }
+          if (isNaN(unitPrice)) unitPrice = 0;
+          if (isNaN(totalVal)) totalVal = unitPrice * qty;
           
           totalProdValue += totalVal;
           return {
@@ -1588,7 +1581,7 @@ export default function App() {
         const realTotalNF = nfe.total?.vNF ? parseFloat(nfe.total.vNF) : null;
         const formattedTotalProd = realTotalNF 
           ? realTotalNF.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-          : totalProdValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          : totalProdValue > 0 ? totalProdValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : "";
 
         let infCplText = nfe.infCpl || "";
         const infCplLines: string[] = [];
@@ -1719,7 +1712,10 @@ export default function App() {
         doc.setTextColor(60, 60, 60);
         doc.text(emitAddress.toUpperCase().substring(0, 52), m + 3, currentY + 11.5);
         doc.text(emitCityState.toUpperCase(), m + 3, currentY + 16);
-        doc.text(`FONE: (85) 3400-0000  |  EMAIL: CONTATO@${finalEmitName.toLowerCase().replace(/[^a-z0-9]/g, '') || "emitente"}.COM.BR`, m + 3, currentY + 20.5);
+        const fone = nfe.emitente?.fone || nfe.emitente?.telefone || "";
+        const email = nfe.emitente?.email || "";
+        const contactText = [fone ? `FONE: ${fone}` : "", email ? `EMAIL: ${email}` : ""].filter(Boolean).join("  |  ");
+        if (contactText) doc.text(contactText, m + 3, currentY + 20.5);
         
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
@@ -1783,9 +1779,11 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        const protocolNumber = "135" + String(series).padStart(2, '0') + String(number).padStart(9, '0');
-        const protocolDate = format(new Date(item.ts), 'dd/MM/yyyy HH:mm:ss');
-        doc.text(`${protocolNumber} - ${protocolDate}`, div2X + 3, currentY + 30.5);
+        const nProt = nfe.protocolo || nfe.protNFe?.infProt?.nProt || nfe.infNFe?.ide?.nNF || "";
+        const dhRecbto = nfe.dhRecbto || nfe.protNFe?.infProt?.dhRecbto;
+        const protocolDate = dhRecbto ? format(new Date(dhRecbto), 'dd/MM/yyyy HH:mm:ss') : "";
+        const protocolText = nProt ? `${nProt} - ${protocolDate}` : "";
+        doc.text(protocolText, div2X + 3, currentY + 30.5);
 
         // --- INSCRICÕES ROW ---
         doc.rect(m, currentY + 32, 210 - 2 * m, 6);
@@ -1880,6 +1878,7 @@ export default function App() {
         doc.setTextColor(0);
         doc.text(destCnpjReal, r1Div1 + 2, currentY + 9);
 
+        const dataEmissao = nfe.dhEmi || nfe.infNFe?.ide?.dhEmi ? format(new Date(nfe.dhEmi || nfe.infNFe?.ide?.dhEmi), 'dd/MM/yyyy') : "";
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
         doc.setTextColor(80, 80, 80);
@@ -1887,14 +1886,14 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), r1Div2 + 2, currentY + 9);
+        doc.text(dataEmissao, r1Div2 + 2, currentY + 9);
 
         // Row 2 Populate:
         const r2Address = nfe.destinatario?.logradouro 
           ? `${nfe.destinatario.logradouro}, ${nfe.destinatario.numero || "S/N"}` 
-          : "ENDEREÇO CONSIGNADO BRASIL LTDA";
-        const r2Bairro = nfe.destinatario?.bairro || "CENTRO INDUSTRIAL";
-        const r2Cep = nfe.destinatario?.cep || "60000-000";
+          : "";
+        const r2Bairro = nfe.destinatario?.bairro || "";
+        const r2Cep = nfe.destinatario?.cep || "";
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -1923,6 +1922,7 @@ export default function App() {
         doc.setTextColor(0);
         doc.text(r2Cep, r2Div2 + 2, currentY + 15);
 
+        const dataSaida = nfe.dhSaiEnt || nfe.infNFe?.ide?.dhSaiEnt ? format(new Date(nfe.dhSaiEnt || nfe.infNFe?.ide?.dhSaiEnt), 'dd/MM/yyyy') : "";
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
         doc.setTextColor(80, 80, 80);
@@ -1930,13 +1930,13 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(format(new Date(item.ts), 'dd/MM/yyyy'), r2Div3 + 2, currentY + 15);
+        doc.text(dataSaida, r2Div3 + 2, currentY + 15);
 
         // Row 3 Populate:
-        const r3Mun = nfe.destinatario?.municipio || "FORTALEZA";
-        const r3Fone = nfe.destinatario?.fone || nfe.destinatario?.telefone || "(85) 3211-1000";
-        const r3Uf = nfe.destinatario?.uf || "CE";
-        const r3Ie = nfe.destinatario?.ie || "ISENTO";
+        const r3Mun = nfe.destinatario?.municipio || "";
+        const r3Fone = nfe.destinatario?.fone || nfe.destinatario?.telefone || "";
+        const r3Uf = nfe.destinatario?.uf || "";
+        const r3Ie = nfe.destinatario?.ie || "";
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -1974,6 +1974,7 @@ export default function App() {
         doc.setTextColor(0);
         doc.text(r3Ie, r3Div3 + 2, currentY + 21);
 
+        const horaSaida = nfe.dhSaiEnt || nfe.infNFe?.ide?.dhSaiEnt ? format(new Date(nfe.dhSaiEnt || nfe.infNFe?.ide?.dhSaiEnt), 'HH:mm:ss') : "";
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
         doc.setTextColor(80, 80, 80);
@@ -1981,7 +1982,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(format(new Date(item.ts), 'HH:mm:ss'), r3Div4 + 2, currentY + 21);
+        doc.text(horaSaida, r3Div4 + 2, currentY + 21);
 
         currentY += 22 + 2;
 
@@ -1997,11 +1998,22 @@ export default function App() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
         doc.setTextColor(80, 80, 80);
-        doc.text("DÉBITO DIRETO AUTORIZADO", m + 2, currentY + 7);
+        
+        let duplicataInfo = "DÉBITO DIRETO AUTORIZADO";
+        if (nfe.cobr && nfe.cobr.dup) {
+          const dup = Array.isArray(nfe.cobr.dup) ? nfe.cobr.dup[0] : nfe.cobr.dup;
+          if (dup) {
+            const vDup = dup.vDup ? parseFloat(dup.vDup).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : formattedTotalProd;
+            const dVenc = dup.dVenc ? format(new Date(dup.dVenc + "T00:00:00"), 'dd/MM/yyyy') : "";
+            const nDup = dup.nDup || "001";
+            duplicataInfo = `DUPLICATA Nº ${nDup}  |  VENCIMENTO: ${dVenc}  |  VALOR LÍQUIDO: ${vDup}`;
+          }
+        }
+        
+        doc.text(duplicataInfo, m + 2, currentY + 7);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(`DUPLICATA Nº 001  |  VENCIMENTO: ${format(new Date(item.ts), 'dd/MM/yyyy')}  |  VALOR LÍQUIDO: ${formattedTotalProd}`, m + 35, currentY + 7);
 
         currentY += 8 + 2;
 
@@ -2040,6 +2052,18 @@ export default function App() {
         doc.line(impDiv8, currentY + 10, impDiv8, currentY + 16);
         doc.line(impDiv9, currentY + 10, impDiv9, currentY + 16);
 
+        const getCurrencyStr = (val: any) => val ? parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : "";
+        const vBC = getCurrencyStr(nfe.total?.vBC || nfe.total?.ICMSTot?.vBC);
+        const vICMS = getCurrencyStr(nfe.total?.vICMS || nfe.total?.ICMSTot?.vICMS);
+        const vBCST = getCurrencyStr(nfe.total?.vBCST || nfe.total?.ICMSTot?.vBCST);
+        const vST = getCurrencyStr(nfe.total?.vST || nfe.total?.ICMSTot?.vST);
+        const vFrete = getCurrencyStr(nfe.total?.vFrete || nfe.total?.ICMSTot?.vFrete);
+        const vSeg = getCurrencyStr(nfe.total?.vSeg || nfe.total?.ICMSTot?.vSeg);
+        const vDesc = getCurrencyStr(nfe.total?.vDesc || nfe.total?.ICMSTot?.vDesc);
+        const vOutro = getCurrencyStr(nfe.total?.vOutro || nfe.total?.ICMSTot?.vOutro);
+        const vIPI = getCurrencyStr(nfe.total?.vIPI || nfe.total?.ICMSTot?.vIPI);
+        const vNF = getCurrencyStr(nfe.total?.vNF || nfe.total?.ICMSTot?.vNF) || formattedTotalProd;
+
         // Row 1 Populate:
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2048,7 +2072,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", m + 2, currentY + 9);
+        doc.text(vBC, m + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2057,7 +2081,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv1 + 2, currentY + 9);
+        doc.text(vICMS, impDiv1 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2066,7 +2090,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv2 + 2, currentY + 9);
+        doc.text(vBCST, impDiv2 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2075,7 +2099,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv3 + 2, currentY + 9);
+        doc.text(vST, impDiv3 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2094,7 +2118,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", m + 2, currentY + 15);
+        doc.text(vFrete, m + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2103,7 +2127,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv5 + 2, currentY + 15);
+        doc.text(vSeg, impDiv5 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2112,7 +2136,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv6 + 2, currentY + 15);
+        doc.text(vDesc, impDiv6 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2121,7 +2145,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv7 + 2, currentY + 15);
+        doc.text(vOutro, impDiv7 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2130,7 +2154,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("R$ 0,00", impDiv8 + 2, currentY + 15);
+        doc.text(vIPI, impDiv8 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2139,7 +2163,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(formattedTotalProd, impDiv9 + 2, currentY + 15);
+        doc.text(vNF, impDiv9 + 2, currentY + 15);
 
         currentY += 16 + 2;
 
@@ -2189,6 +2213,30 @@ export default function App() {
         doc.line(trDiv12, currentY + 16, trDiv12, currentY + 22);
         doc.line(trDiv13, currentY + 16, trDiv13, currentY + 22);
 
+        const transpCNPJ = nfe.transportadora?.cnpj || nfe.infNFe?.transp?.transporta?.CNPJ || nfe.infNFe?.transp?.transporta?.CPF || "";
+        const transpIE = nfe.transportadora?.ie || nfe.infNFe?.transp?.transporta?.IE || "";
+        const transpEnd = nfe.transportadora?.logradouro || nfe.infNFe?.transp?.transporta?.xEnder || "";
+        const transpMun = nfe.transportadora?.municipio || nfe.infNFe?.transp?.transporta?.xMun || "";
+        const transpUF = nfe.transportadora?.uf || nfe.infNFe?.transp?.transporta?.UF || "";
+        
+        let modFreteDesc = "0 - REMETENTE";
+        const modF = nfe.infNFe?.transp?.modFrete;
+        if (modF === "1") modFreteDesc = "1 - DESTINATÁRIO";
+        else if (modF === "2") modFreteDesc = "2 - TERCEIROS";
+        else if (modF === "3") modFreteDesc = "3 - PRÓPRIO/REMETENTE";
+        else if (modF === "4") modFreteDesc = "4 - PRÓPRIO/DESTINATÁRIO";
+        else if (modF === "9") modFreteDesc = "9 - SEM FRETE";
+
+        const placa = nfe.infNFe?.transp?.veicTransp?.placa || "";
+        const ufVeic = nfe.infNFe?.transp?.veicTransp?.UF || "";
+        const rntc = nfe.infNFe?.transp?.veicTransp?.RNTC || "";
+
+        const volEsp = nfe.infNFe?.transp?.vol?.esp || "";
+        const volMarca = nfe.infNFe?.transp?.vol?.marca || "";
+        const volNum = nfe.infNFe?.transp?.vol?.nVol || "";
+        const pesoL = nfe.pesoL || nfe.infNFe?.transp?.vol?.pesoL || "";
+        const formattedWeightL = pesoL ? `${parseFloat(pesoL).toFixed(3)}` : "";
+
         // Row 1 Populate:
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2206,7 +2254,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("0 - REMETENTE", trDiv1 + 2, currentY + 9);
+        doc.text(modFreteDesc, trDiv1 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2215,7 +2263,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("-", trDiv2 + 2, currentY + 9);
+        doc.text(rntc, trDiv2 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2224,7 +2272,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("FTL-2026", trDiv3 + 2, currentY + 9);
+        doc.text(placa, trDiv3 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2233,7 +2281,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("CE", trDiv4 + 2, currentY + 9);
+        doc.text(ufVeic, trDiv4 + 2, currentY + 9);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2242,7 +2290,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("07.122.455/0001-90", trDiv5 + 2, currentY + 9);
+        doc.text(transpCNPJ, trDiv5 + 2, currentY + 9);
 
         // Row 2 Populate:
         doc.setFont("helvetica", "normal");
@@ -2252,7 +2300,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("AVENIDA OPERACIONAL DA SEFAZ, 4000", m + 2, currentY + 15);
+        doc.text(String(transpEnd).toUpperCase().substring(0, 45), m + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2261,7 +2309,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("FORTALEZA", trDiv6 + 2, currentY + 15);
+        doc.text(String(transpMun).toUpperCase().substring(0, 20), trDiv6 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2270,7 +2318,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("CE", trDiv7 + 2, currentY + 15);
+        doc.text(transpUF, trDiv7 + 2, currentY + 15);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2279,7 +2327,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("401202611", trDiv8 + 2, currentY + 15);
+        doc.text(transpIE, trDiv8 + 2, currentY + 15);
 
         // Row 3 Populate:
         doc.setFont("helvetica", "normal");
@@ -2298,7 +2346,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("VOLUMES", trDiv9 + 2, currentY + 21);
+        doc.text(volEsp, trDiv9 + 2, currentY + 21);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2307,7 +2355,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("DIVERSAS", trDiv10 + 2, currentY + 21);
+        doc.text(volMarca, trDiv10 + 2, currentY + 21);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2316,7 +2364,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text("-", trDiv11 + 2, currentY + 21);
+        doc.text(volNum, trDiv11 + 2, currentY + 21);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4.5);
@@ -2334,7 +2382,7 @@ export default function App() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.5);
         doc.setTextColor(0);
-        doc.text(formattedWeight, trDiv13 + 2, currentY + 21);
+        doc.text(formattedWeightL, trDiv13 + 2, currentY + 21);
 
         currentY += 22 + 2;
 
