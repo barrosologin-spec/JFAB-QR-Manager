@@ -27,11 +27,15 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 * **Compatibilidade Dinâmica:** Suporte nativo para impressão direta, geração de PDFs em lote no navegador usando `jspdf` com feedback sonoro audível em tempo real.
 
 ### 🛡️ Auditoria, Segurança e Consolidação
-* **Gravação Atômica & Autocorreção Resiliente (Novo):** Para evitar qualquer corrupção acidental do arquivo físico no servidor (como interrupções de energia ou problemas de concorrência), a escrita no banco de dados local (`storage.json`) agora é feita de forma estritamente atômica (salvando em um arquivo temporário antes de renomear). Além disso, o sistema conta com um mecanismo inteligente de auto-recuperação de arquivos corrompidos (`SyntaxError`), realizando backups automáticos do estado danificado e restaurando uma base íntegra operacional.
-* **Sincronização robusta via SQLite/JSON (`storage.json`):** Estrutura de persistência estável baseada em arquivos no servidor, com controle de carimbos de data/hora (*timestamps*) e validação estrita contra perda de dados.
+* **Gravação Atômica & Autocorreção Resiliente (Novo):** Para evitar qualquer corrupção acidental do arquivo físico no servidor (como interrupções de energia ou problemas de concorrência), a escrita no banco de dados local (`storage.db (SQLite)`) agora é feita de forma estritamente atômica (salvando em um arquivo temporário antes de renomear). Além disso, o sistema conta com um mecanismo inteligente de auto-recuperação de arquivos corrompidos (`SyntaxError`), realizando backups automáticos do estado danificado e restaurando uma base íntegra operacional.
+* **Sincronização robusta via SQLite/JSON (`storage.db (SQLite)`):** Estrutura de persistência estável baseada em arquivos no servidor, com controle de carimbos de data/hora (*timestamps*) e validação estrita contra perda de dados.
 * **Sincronização Ativa em Tempo Real (Novo):** Sincronização automática em tempo real a cada 3 segundos, ideal para vários terminais operando ao mesmo tempo sem conflito, com tickers de sincronização dinâmica atualizados segundo a segundo no menu lateral.
 * **Centro de Notificações e Registros de Auditoria:** Histórico detalhado de alterações críticas com descrições das operações do sistema.
 * **Mecanismo de Usuários e Autenticação:** Tela de login customizada com salvaguarda padrão para acesso inicial de operadores autorizados.
+
+### 🧩 Arquitetura & Manutenibilidade
+* **Arquitetura Desacoplada:** Todo o motor de geração de PDFs (DANFE, Placas e Manifestos) foi extraído para módulos independentes sob `src/lib/pdf/`, deixando o `App.tsx` enxuto, manutenível e obedecendo aos princípios de Responsabilidade Única (SRP).
+* **Integração Fluída:** O sistema utiliza Contextos eficientes para injeção de dependências e compartilhamento de configurações e ações fundamentais sem prop-drilling exaustivo.
 
 ### 💾 Backup, Importação & Exportação Completos
 * **Exportação Direta de Dados:** Com um único clique dentro das configurações, exporte todo o banco de dados em um único arquivo de backup JSON estruturado.
@@ -49,7 +53,7 @@ Projetada com uma interface de alta fidelidade visual (Dark Slate e acentos em a
 * **Recharts / D3** para análises visuais e gráficos dinâmicos de distribuição de dados e status.
 
 ### Backend
-* **Node.js** com **Express** atuando como servidor de sincronização de controle e gestão do banco de dados centralizado em JSON local (`storage.json`).
+* **Node.js** com **Express** atuando como servidor de sincronização de controle e gestão do banco de dados centralizado em JSON local (`storage.db (SQLite)`).
 * **esbuild** e **tsx** para bundling de produção de alto desempenho e execução rápida de TypeScript nativo.
 
 ---

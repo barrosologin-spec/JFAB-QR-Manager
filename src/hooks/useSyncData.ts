@@ -78,7 +78,7 @@ export function useSyncData() {
     setNotifications([]);
   }, []);
 
-  // 1. On Mount: Load database directly from Server API (storage.json)
+  // 1. On Mount: Load database directly from Server API (storage.db (SQLite))
   useEffect(() => {
     const loadServerData = async () => {
       try {
@@ -115,7 +115,7 @@ export function useSyncData() {
         }
         await fetchDbHealth();
       } catch (err) {
-        console.error('Failed to load server storage.json on startup:', err);
+        console.error('Failed to load server storage.db (SQLite) on startup:', err);
       } finally {
         setLoading(false);
       }
@@ -147,7 +147,7 @@ export function useSyncData() {
 
   const consecutiveFailsRef = useRef(0);
 
-  // Core Sync Function: Retrieve the latest backend state from storage.json
+  // Core Sync Function: Retrieve the latest backend state from storage.db (SQLite)
   const syncNow = useCallback(async (isAutoSync: boolean = false) => {
     setIsSyncing(true);
     try {

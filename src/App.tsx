@@ -1880,7 +1880,7 @@ export default function App() {
                   {dbHealth?.sizeFormatted || 'Calculando...'}
                 </span>
                 <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">
-                  Tamanho físico do arquivo de persistência (`storage.json`) armazenado no servidor.
+                  Tamanho físico do arquivo de persistência (`storage.db (SQLite)`) armazenado no servidor.
                 </span>
               </div>
               

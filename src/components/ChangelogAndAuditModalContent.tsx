@@ -119,7 +119,7 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
       date: '22 de Junho, 2026',
       title: 'Sincronização Direta em Servidor & Header Simplificado',
       highlights: [
-        'Descontinuação completa da camada local IndexedDB para operação direta, rápida e centralizada no banco de dados do servidor (storage.json).',
+        'Descontinuação completa da camada local IndexedDB para operação direta, rápida e centralizada no banco de dados do servidor (storage.db (SQLite)).',
         'Remoção do botão "Painel de Ajustes", substituindo-o por um painel sofisticado de identificação do operador ativo e controle rápido de Saída (Logout) integrado diretamente no cabeçalho superior.',
         'Saneamento de logs e interface de usuário focada em consistência e usabilidade aprimorada.'
       ]
