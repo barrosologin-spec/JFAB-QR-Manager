@@ -35,8 +35,20 @@ export const ChangelogAndAuditModalContent: React.FC<ChangelogAndAuditModalConte
   // System releases & milestones historical array
   const systemChanges = [
     {
-      version: 'v3.5.0',
+      version: 'v3.6.0',
       tag: 'Atual',
+      date: '29 de Junho, 2026',
+      title: 'Persistência Robusta com SQLite & Refatoração de PDFs',
+      highlights: [
+        'Transição do armazenamento em arquivo JSON simples para o banco de dados robusto SQLite, prevenindo corrompimentos de dados e assegurando escritas atômicas e transações ACID.',
+        'Total refatoração da arquitetura de relatórios e relatórios gerenciais, segregando a lógica complexa de renderização e exportação de PDFs (DANFEs e Placas) em módulos próprios limpos, promovendo os princípios SOLID de código.',
+        'Remoção de referências circulares e otimização do React lifecycle no front-end para evitar vazamentos de memória na inicialização do aplicativo.',
+        'Preservação da migração automática ("fallback"): caso não exista banco de dados, mas o arquivo JSON sim, o sistema cuidará de importar para a nova arquitetura sem perdas.',
+        'Atualização do README e painéis de versionamento e registro de melhorias.'
+      ]
+    },
+    {
+      version: 'v3.5.0',
       date: '25 de Junho, 2026',
       title: 'Calendário de Cores Inteligente & Sincronização em Tempo Real',
       highlights: [
