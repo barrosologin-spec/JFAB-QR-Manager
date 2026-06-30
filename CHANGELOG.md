@@ -16,7 +16,7 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - **Menu Lateral "Log de Erros":** Remoção completa da aba de "Log de Erros" do menu sidebar e da barra lateral, simplificando a interface operacional e integrando toda a telemetria à Central de Notificações nativa.
 
 ### Refatorado
-- **Persistência de Dados (SQLite):** Substituição do armazenamento direto em arquivo JSON para um banco de dados SQLite (`storage.db`), utilizando transações seguras para prevenir corrupção de arquivos e falhas catastróficas. O sistema garante escritas atômicas e migra automaticamente dados legados do arquivo JSON para o novo banco de dados.
+- **Persistência de Dados (SQLite Relacional):** Refinamento completo da persistência SQLite (`storage.db`). Deixamos de salvar o estado em um valor JSON monolítico para implementar uma arquitetura relacional estruturada com tabelas dedicadas (`settings`, `containers`, `items`) com restrições de integridade, chaves estrangeiras com cascateamento dinâmico (`ON DELETE CASCADE`) e índices de busca otimizados (`idx_containers_category_date`, `idx_items_container`, `idx_items_barcode`). O sistema realiza hot-migration automática e contagem direta via SQL no painel de saúde do sistema.
 - **Arquitetura e PDF:** Extração e refatoração da lógica de geração de PDFs (DANFE e Placas) para arquivos independentes em `src/lib/pdf/generators.ts`, reduzindo significativamente o tamanho do `App.tsx` e melhorando a manutenibilidade do código.
 - **Preview do Layout:** O Estúdio de Layout agora suporta simulação de geração de PDF do DANFE com dados baseados na chave fornecida.
 - **API de Consulta DANFE:** Atualização no endpoint e formato da requisição para busca das informações da NF-e.
