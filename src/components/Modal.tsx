@@ -34,11 +34,11 @@ export function Modal({isOpen, onClose, title, children, footer, className}: Mod
               animate={{opacity: 1, scale: 1, translateY: 0}}
               exit={{opacity: 0, scale: 0.95, translateY: 10}}
               className={cn(
-                "bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto overflow-hidden",
+                "bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto flex flex-col overflow-hidden max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-4rem)]",
                 className
               )}
             >
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 shrink-0">
                 <h3 className="font-bold text-slate-800 tracking-tight">{title}</h3>
                 <button 
                   onClick={onClose}
@@ -48,12 +48,12 @@ export function Modal({isOpen, onClose, title, children, footer, className}: Mod
                 </button>
               </div>
               
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto flex-1">
                 {children}
               </div>
 
               {footer && (
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
                   {footer}
                 </div>
               )}

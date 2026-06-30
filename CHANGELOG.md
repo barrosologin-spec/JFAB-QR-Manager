@@ -4,6 +4,17 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ## [Unreleased]
 
+### Adicionado
+- **Detecção de Duplicidade no Manifesto (Placa):** O manifesto em PDF agora detecta automaticamente leituras duplicadas do mesmo item em um contêiner. O item duplicado é destacado em vermelho no documento impresso com a etiqueta `(DUPLICADO - VERIFICAR!)`.
+- **Controle Dinâmico de Quantidade:** A quantidade exibida de volumes/itens cadastrados agora desconta as duplicidades para exibir a quantidade real de itens únicos (`X ÚNICOS`), facilitando a conferência física e prevenindo erros logísticos.
+- **Banner de Alerta em PDFs:** Adicionado um banner vermelho de destaque no topo da lista de composição de carga alertando os operadores sobre a duplicidade detectada no lote.
+
+### Corrigido
+- **Rolagem de Modais (Scroll):** Correção do comportamento dos modais (especialmente o modal de Configurações) que ficavam cortados e inacessíveis em telas com menor resolução vertical. Agora, a janela do modal se adapta de forma fluida à altura do visor (`viewport`), apresentando uma barra de rolagem interna inteligente na área de conteúdo sem ocultar o cabeçalho e o rodapé.
+
+### Removido
+- **Menu Lateral "Log de Erros":** Remoção completa da aba de "Log de Erros" do menu sidebar e da barra lateral, simplificando a interface operacional e integrando toda a telemetria à Central de Notificações nativa.
+
 ### Refatorado
 - **Persistência de Dados (SQLite):** Substituição do armazenamento direto em arquivo JSON para um banco de dados SQLite (`storage.db`), utilizando transações seguras para prevenir corrupção de arquivos e falhas catastróficas. O sistema garante escritas atômicas e migra automaticamente dados legados do arquivo JSON para o novo banco de dados.
 - **Arquitetura e PDF:** Extração e refatoração da lógica de geração de PDFs (DANFE e Placas) para arquivos independentes em `src/lib/pdf/generators.ts`, reduzindo significativamente o tamanho do `App.tsx` e melhorando a manutenibilidade do código.

@@ -96,12 +96,12 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('qr_dark_mode') === 'true');
-  const [currentTab, setCurrentTab] = useState<'production' | 'calendar' | 'archived' | 'errors' | 'search' | 'duplicates' | 'nfe' | 'designer' | 'coletas' | 'users'>('production');
+  const [currentTab, setCurrentTab] = useState<'production' | 'calendar' | 'archived' | 'search' | 'duplicates' | 'nfe' | 'designer' | 'coletas' | 'users'>('production');
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '').replace('#', '');
-      const validTabs = ['production', 'calendar', 'archived', 'errors', 'search', 'duplicates', 'nfe', 'designer', 'coletas', 'users'];
+      const validTabs = ['production', 'calendar', 'archived', 'search', 'duplicates', 'nfe', 'designer', 'coletas', 'users'];
       if (validTabs.includes(hash)) {
         setCurrentTab(hash as any);
       }
@@ -751,9 +751,7 @@ export default function App() {
       if (tab === 'calendar') {
         return title.includes('finaliz') || message.includes('finaliz') || title.includes('produção') || message.includes('produção');
       }
-      if (tab === 'errors') {
-        return type === 'error' || title.includes('erro') || message.includes('erro') || title.includes('falhou') || message.includes('falha');
-      }
+
       if (tab === 'archived') {
         return title.includes('arquiv') || message.includes('arquiv') || title.includes('restaur') || message.includes('restaur');
       }
@@ -1007,32 +1005,7 @@ export default function App() {
                 )}
               </button>
 
-              {/* Log de Erros */}
-              <button 
-                onClick={() => setCurrentTab('errors')}
-                title={isSidebarCollapsed ? "Log de Erros" : undefined}
-                className={cn(
-                  "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 relative group",
-                  currentTab === 'errors' ? `${activePreset.bgLight} ${activePreset.text} shadow-sm` : "text-gray-500 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
-                )}
-              >
-                <div className={cn("flex items-center gap-2.5", isSidebarCollapsed && "w-full justify-center")}>
-                  <div className="relative">
-                    <AlertCircle size={18} className="shrink-0" />
-                    {isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-black text-white shrink-0 shadow-sm animate-pulse">
-                        {getNotificationCountForTab('errors')}
-                      </span>
-                    )}
-                  </div>
-                  {!isSidebarCollapsed && <span>Log de Erros</span>}
-                </div>
-                {!isSidebarCollapsed && getNotificationCountForTab('errors') > 0 && (
-                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white bg-red-500 shadow-sm">
-                    {getNotificationCountForTab('errors')}
-                  </span>
-                )}
-              </button>
+
 
               {/* Controle de Acesso */}
               <button 
@@ -1344,12 +1317,7 @@ export default function App() {
             </div>
           )}
 
-          {currentTab === 'errors' && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 flex flex-col items-center">
-              <AlertCircle size={48} className="mb-4 opacity-20" />
-              <p className="text-lg font-medium">Log de Erros Integrado à Central de Notificações</p>
-            </div>
-          )}
+
 
           {currentTab === 'designer' && (
             <LayoutDesigner onDownloadDanfePDF={handleDownloadDanfePDF} />

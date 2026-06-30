@@ -1689,17 +1689,42 @@ export const printContainerPlate = async (ctx: PDFContext) => {
       doc.setTextColor(primaryColor);
       doc.setFontSize(12);
       
+      const keyCounts: Record<string, number> = {};
+      items.forEach(item => {
+        keyCounts[item.t] = (keyCounts[item.t] || 0) + 1;
+      });
+      const totalUniqueKeys = Object.keys(keyCounts).length;
+      const duplicateKeysCount = items.length - totalUniqueKeys;
+      const hasDuplicates = duplicateKeysCount > 0;
+
       const nfeItems = items.filter(i => i.nfeData);
       const isNFe = nfeItems.length > 0;
       
       if (isNFe) {
-        let totalVols = 0;
-        nfeItems.forEach(ni => {
-          totalVols += parseInt(ni.nfeData?.volumes || "1", 10) || 1;
-        });
-        doc.text(`${totalVols} VOLUMES DE ${nfeItems.length} NF${nfeItems.length > 1 ? 's' : ''}`, labelX, 151);
+        if (hasDuplicates) {
+          const uniqueNfeItems = nfeItems.filter((ni, idx, self) => self.findIndex(x => x.t === ni.t) === idx);
+          let uniqueVols = 0;
+          uniqueNfeItems.forEach(ni => {
+            uniqueVols += parseInt(ni.nfeData?.volumes || "1", 10) || 1;
+          });
+          doc.setTextColor(220, 38, 38); // RED
+          doc.text(`${uniqueVols} VOLS. ÚNICOS (DETEC. ${duplicateKeysCount} DUPL.)`, labelX, 151);
+          doc.setTextColor(textColor);
+        } else {
+          let totalVols = 0;
+          nfeItems.forEach(ni => {
+            totalVols += parseInt(ni.nfeData?.volumes || "1", 10) || 1;
+          });
+          doc.text(`${totalVols} VOLUMES DE ${nfeItems.length} NF${nfeItems.length > 1 ? 's' : ''}`, labelX, 151);
+        }
       } else {
-        doc.text(`${items.length} ITENS CADASTRADOS`, labelX, 151);
+        if (hasDuplicates) {
+          doc.setTextColor(220, 38, 38); // RED
+          doc.text(`${totalUniqueKeys} ÚNICOS (DETEC. ${duplicateKeysCount} DUPL.)`, labelX, 151);
+          doc.setTextColor(textColor);
+        } else {
+          doc.text(`${items.length} ITENS CADASTRADOS`, labelX, 151);
+        }
       }
 
       // Right Pane - QR/Barcode image placement
@@ -1821,6 +1846,21 @@ export const printContainerPlate = async (ctx: PDFContext) => {
       }
 
       // 6. DETAILED SUMMARY OF REGISTERED ITEMS (Content Manifesto)
+      if (hasDuplicates) {
+        doc.setFillColor(254, 242, 242);
+        doc.setDrawColor(239, 68, 68);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(15, manifestoY, 180, 6, 1, 1, 'FD');
+        
+        doc.setTextColor(220, 38, 38);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.text("ATENÇÃO: DETECTADA DUPLICIDADE DE LEITURA NESTE CONTÊINER. VERIFIQUE OS ITENS DESTACADOS EM VERMELHO.", 105, manifestoY + 4, { align: 'center' });
+        
+        manifestoY += 8;
+        tableY += 8;
+      }
+
       doc.setTextColor(textColor);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
@@ -1998,7 +2038,15 @@ export const printContainerPlate = async (ctx: PDFContext) => {
           if (labelText.length > 56) {
             labelText = labelText.substring(0, 53) + "...";
           }
-          doc.text(labelText, 26, itemY);
+          
+          const isDup = keyCounts[item.t] > 1;
+          if (isDup) {
+            doc.setTextColor(220, 38, 38);
+            doc.text(`${labelText} (DUPLICADO - VERIFICAR!)`, 26, itemY);
+            doc.setTextColor(textColor);
+          } else {
+            doc.text(labelText, 26, itemY);
+          }
 
           doc.setFont("helvetica", "normal");
           const scanTime = format(item.ts, 'dd/MM/yyyy HH:mm:ss');
@@ -2076,7 +2124,15 @@ export const printContainerPlate = async (ctx: PDFContext) => {
                 if (labelText.length > 56) {
                   labelText = labelText.substring(0, 53) + "...";
                 }
-                doc.text(labelText, 26, itemY);
+                
+                const isDup = keyCounts[item.t] > 1;
+                if (isDup) {
+                  doc.setTextColor(220, 38, 38);
+                  doc.text(`${labelText} (DUPLICADO - VERIFICAR!)`, 26, itemY);
+                  doc.setTextColor(textColor);
+                } else {
+                  doc.text(labelText, 26, itemY);
+                }
                 
                 doc.setFont("helvetica", "normal");
                 const scanTime = format(item.ts, 'dd/MM/yyyy HH:mm:ss');
